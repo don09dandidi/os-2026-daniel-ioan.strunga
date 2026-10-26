@@ -1,0 +1,58 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[romanian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo(1).png}{\includegraphics[width=0.25\textwidth]{utm_logo(1).png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 3}}\\[0.4cm]
+    {\LARGE \textbf{Bash, scripting și filtre de text}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+\newpage
+
+\section{Scopul lucrării}
+Familiarizarea cu linia de comandă Linux și automatizarea sarcinilor recurente prin scrierea de scripturi Bash. S-au utilizat utilitare standard (grep, cut, sort, uniq, wc) pentru a procesa, filtra și extrage statistici dintr-un fișier jurnal (\texttt{access.log}).
+
+\section{Desfășurarea lucrării}
+\subsection{Codul scripturilor (\texttt{oneliners.sh} și \texttt{report.sh})}
+Am creat \texttt{oneliners.sh} pentru a răspunde cu o singură linie de comandă la fiecare cerință, utilizând pipe-uri pentru a lega output-ul unei comenzi la input-ul alteia. În \texttt{report.sh} am implementat logica de bash scripting iterativ.
+
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+user@user-VPCEH1L0E:~/os-lab3$ ./report.sh access.log
+500 requests, 100 failed
+user0: 15 failures
+user1: 14 failures
+...
+\end{lstlisting}
+\caption{Figure 3.1 -- Rularea și output-ul scriptului report.sh}
+\end{figure}
+
+\subsection{Răspunsuri (Observe)}
+\begin{enumerate}
+    \item Cererile eșuate au fost identificate filtrând liniile care conțin cuvântul "FAIL" cu \texttt{grep -c}.
+    \item Pentru paginile distincte am folosit \texttt{cut} pentru a extrage coloana paginii, urmat de \texttt{sort -u}.
+    \item Utilizatorul cu cele mai multe erori a fost extras prin numărarea aparițiilor unice și sortarea lor numerică descrescătoare (\texttt{sort -rn | head -1}).
+\end{enumerate}
+
+\section{Concluzii}
+Utilizarea pipe-urilor în Linux reprezintă o metodă extrem de eficientă de procesare a datelor brute. Am demonstrat că operațiuni complexe de analiză a logurilor pot fi reduse la o singură linie de cod prin combinarea filtrelor standard, eliminând nevoia unor limbaje de programare de nivel înalt pentru sarcini administrative.
+\end{document}

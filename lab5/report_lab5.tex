@@ -1,0 +1,55 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[romanian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo(1).png}{\includegraphics[width=0.25\textwidth]{utm_logo(1).png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 5}}\\[0.4cm]
+    {\LARGE \textbf{Sistemul de fișiere ext4 în Linux}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+\newpage
+
+\section{Scopul lucrării}
+Investigarea profundă a arhitecturii sistemelor de fișiere tipice UNIX (în mod specific \texttt{ext4}). Am explorat relația dintre numele de fișiere și blocurile fizice de memorie prin intermediul inode-urilor, precum și mecanismul de permisiuni octale/simbolice.
+
+\section{Desfășurarea lucrării}
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+user@user-VPCEH1L0E:~/os-lab5$ ls -li notes.txt hard.txt soft.txt
+6556116 -rw-r--r-- 2 user user 6 Oct 19 14:00 hard.txt
+6556116 -rw-r--r-- 2 user user 6 Oct 19 14:00 notes.txt
+6556117 lrwxrwxrwx 1 user user 9 Oct 19 14:02 soft.txt -> hard.txt
+\end{lstlisting}
+\caption{Figure 5.1 -- Demonstrarea legăturilor inode-urilor}
+\end{figure}
+
+\subsection{Răspunsuri (Observe)}
+\begin{enumerate}
+    \item Numele unui fișier este salvat în fișierul directorului părinte, în timp ce dimensiunea, permisiunile și datele sunt stocate în \textbf{inode}.
+    \item Un hard link acționează ca un nume suplimentar pentru același inode (se incrementează câmpul \texttt{Links}). Ștergerea fișierului inițial nu distruge datele atâta timp cât celălalt hard link rămâne valabil.
+    \item Pentru a obține permisiunile implicite ale unui fișier creat nou, kernelul scade masca \texttt{umask} (ex: 0002) din valoarea brută 0666, obținând 0664 (\texttt{rw-rw-r--}).
+    \item \texttt{truncate -s 1G} a creat un Sparse File: mărimea sa logică este de 1GB, dar comanda \texttt{du} arată că folosește 0 blocuri fizice de pe disc, conținând doar zone vide.
+\end{enumerate}
+
+\section{Concluzii}
+Laboratorul demonstrează filozofia principală UNIX: orice element este reprezentat ca un fișier. Separarea denumirii unui fișier de datele sale de configurare din \textit{inode} permite flexibilitate maximă în crearea de legături simbolice și hard, optimizând astfel consumul spațiului și viteza de organizare.
+\end{document}

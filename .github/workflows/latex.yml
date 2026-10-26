@@ -1,0 +1,23 @@
+name: Build LaTeX Reports
+on: [push]
+jobs:
+  build_latex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Compile LaTeX documents
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: |
+            lab3/report_lab3.tex
+            lab4/report_lab4.tex
+            lab5/report_lab5.tex
+            lab6/report_lab6.tex
+            lab7/report_lab7.tex
+            lab8/report_lab8.tex
+      - name: Upload PDF artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: PDF-Reports
+          path: ./*.pdf

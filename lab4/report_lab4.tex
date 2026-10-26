@@ -1,0 +1,56 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[romanian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo(1).png}{\includegraphics[width=0.25\textwidth]{utm_logo(1).png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 4}}\\[0.4cm]
+    {\LARGE \textbf{Argumente în C și integrarea în xv6}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+\newpage
+
+\section{Scopul lucrării}
+Analiza modului în care sistemul de operare parsează și transmite argumentele liniei de comandă către un program C, folosind variabilele \texttt{argc} și \texttt{argv}. S-a efectuat de asemenea integrarea unui nou program C în kernel-ul educațional xv6.
+
+\section{Desfășurarea lucrării}
+\subsection{Partea 1: Argumente în Linux}
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+user@user-VPCEH1L0E:~/os-lab4$ ./args_linux hello world
+argc = 3
+argv[0] = [./args_linux]
+argv[1] = [hello]
+argv[2] = [world]
+\end{lstlisting}
+\caption{Figure 4.1 -- Procesarea argumentelor standard în Linux}
+\end{figure}
+
+\subsection{Răspunsuri (Observe)}
+\begin{enumerate}
+    \item \texttt{argc} reprezintă numărul total de argumente, inclusiv numele executabilului. \texttt{argv} este un array de pointeri către șiruri de caractere (string-uri).
+    \item Argumentul de la indexul 0 (\texttt{argv[0]}) este întotdeauna calea sau numele programului rulat (ex: \texttt{./args\_linux}).
+    \item Pentru a rula \texttt{args} în xv6, a trebuit să îl adăugăm în lista \texttt{UPROGS} din \texttt{Makefile}, pentru ca la execuția \texttt{make qemu} acesta să fie compilat în sistemul de fișiere virtual.
+\end{enumerate}
+
+\section{Concluzii}
+Mecanismul de transmitere a argumentelor din mediul shell către funcția \texttt{main} din C este un standard respectat atât de kernelurile majore (Linux), cât și de cele educaționale (xv6). Observăm că \texttt{argv} expune utilizatorului date esențiale oferite direct de execuția shell-ului.
+\end{document}

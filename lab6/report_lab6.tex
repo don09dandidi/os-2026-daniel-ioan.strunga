@@ -1,0 +1,56 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[romanian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo(1).png}{\includegraphics[width=0.25\textwidth]{utm_logo(1).png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 6}}\\[0.4cm]
+    {\LARGE \textbf{Interiorul sistemului de fișiere xv6}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+\newpage
+
+\section{Scopul lucrării}
+Studierea structurilor interne de date folosite de un sistem de operare pentru gestionarea memoriei persistente, prin analizarea codului sursă xv6 și crearea comenzilor sistem \texttt{mystat} și \texttt{find}.
+
+\section{Desfășurarea lucrării}
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+$ mystat README 
+README: file, inode 2, links 1, size 2441 bytes
+$ find / .
+/README
+/cat
+/echo
+\end{lstlisting}
+\caption{Figure 6.1 -- Rularea comenzilor în mediul virtual xv6}
+\end{figure}
+
+\subsection{Răspunsuri (Observe)}
+\begin{enumerate}
+    \item Un director conține un șir de structuri \texttt{dirent}, fiecare având 16 octeți (2 pentru indexul de inod, 14 octeți max. pentru nume \texttt{DIRSIZ}).
+    \item Legăturile hard funcționează iterând atributul \texttt{ip->nlink} din nucleu. Un \texttt{inode} se distruge doar când contorul \texttt{nlink} devine 0 \textit{și} nu mai există descriptori de fișier (\texttt{ref == 0}) care să îl țină deschis.
+    \item Limita de mărime a unui fișier în xv6 este 268KB, calculată prin cele 12 blocuri de adresare directă + cele 256 de adrese din blocul de adresare indirectă, înmulțite cu dimensiunea unui bloc.
+\end{enumerate}
+
+\section{Concluzii}
+Interacțiunea directă cu structurile \texttt{stat} și \texttt{dirent} în limbajul C demonstrează rigiditatea dar și eficiența mecanismelor interne din kernel. Am observat cum abstracțiile precum parcurgerea iterativă a directoarelor (comanda \texttt{find}) se bazează pe citirea și interpretarea secvențială a blocurilor de memorie organizate de xv6.
+\end{document}

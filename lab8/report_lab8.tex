@@ -1,0 +1,54 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[romanian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo(1).png}{\includegraphics[width=0.25\textwidth]{utm_logo(1).png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 8}}\\[0.4cm]
+    {\LARGE \textbf{Aceleași apeluri, în OS-ul tău (xv6)}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+\newpage
+
+\section{Scopul lucrării}
+Implementarea administrării de procese interdependente (IPC) și realizarea de comunicații secvențiale bidirecționale în interiorul sistemului operațional educațional xv6, verificând transpunerea conceptelor arhitecturii POSIX studiate la Laboratorul 7.
+
+\section{Desfășurarea lucrării}
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+$ pingpong
+10: received ping
+9: received pong
+\end{lstlisting}
+\caption{Figure 8.1 -- Comunicarea bidirecțională sincronizată între procese în xv6}
+\end{figure}
+
+\subsection{Răspunsuri (Observe)}
+\begin{enumerate}
+    \item \textbf{Part 1 (\texttt{run}):} Apelul sistemului subiacent a rămas neschimbat (triada \texttt{fork -> exec -> wait}). Procesul părinte își duplică zona de memorie, copilul rezultat își schimbă ramura curentă cu apelul \texttt{exec}, chemând intern utilitarul \texttt{echo}, care devine responsabil pentru printarea mesajului pe ecran.
+    \item \textbf{Part 2 (\texttt{pingpong}):} Pipe-urile în mediile derivate din Unix (inclusiv xv6) sunt structuri de memorie \textit{unidirecționale}. Prin urmare, fluxul bidirecțional ("ping" urmat de un răspuns "pong") necesită crearea simultană a două instanțe separate de \texttt{pipe}, una alocată exclusiv pentru scrierea copilului, și alta alocată exclusiv pentru citirea acestuia.
+\end{enumerate}
+
+\section{Concluzii (Comparație Linux vs xv6)}
+În realizarea lucrărilor 7 și 8 am observat universalitatea apelurilor POSIX. Principiul de separare logică \texttt{fork} + \texttt{exec} a rămas neatins între Linux (arhitectură de producție) și xv6 (kernel educațional minimal). 
+
+Diferențele apar doar în complexitatea bibliotecilor care interfațează kernelul: Linux (prin glibc) adaugă opțiuni avansate (ex: \texttt{execlp} pentru căutarea automată în calea curentă sau biții de status suplimentari din funcția \texttt{waitpid} necesari decodificării întreruperilor hardware), în timp ce xv6 oferă strict rutinele esențiale neprocesate, forțând programatorul să rezolve rutarea și sincronizările inter-procese la nivel absolut elementar.
+\end{document}

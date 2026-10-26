@@ -1,0 +1,57 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[romanian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo(1).png}{\includegraphics[width=0.25\textwidth]{utm_logo(1).png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 7}}\\[0.4cm]
+    {\LARGE \textbf{Procese, Redirectare și Pipes (Linux)}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+\newpage
+
+\section{Scopul lucrării}
+Înțelegerea modului în care shell-ul (terminalul) Linux direcționează execuția și fluxurile de date. S-a urmărit simularea funcțiilor interne ale bash-ului prin scrierea directă a apelurilor de sistem POSIX pentru manipularea proceselor (\texttt{fork}, \texttt{exec}) și a descriptorilor de fișiere (\texttt{pipe}, \texttt{dup}, redirectări).
+
+\section{Desfășurarea lucrării}
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+user@user-VPCEH1L0E:~/os-lab7$ ./run
+parent: my PID is 773846
+child: my PID is 773847, my parent is 773846
+total 40
+-rwxrwxr-x 1 user user 16400 Oct 19 13:31 run
+parent: child 773847 ended with status 0
+\end{lstlisting}
+\caption{Figure 7.1 -- Apelul fork și exec cu returnarea corectă a statusului (wait)}
+\end{figure}
+
+\subsection{Răspunsuri (Observe)}
+\begin{enumerate}
+    \item \textbf{Part 1:} \texttt{execlp} înlocuiește imaginea memoriei procesului curent. Astfel, codul \texttt{perror("exec")} rulat după el este apelat doar dacă sistemul nu reușește să schimbe programul (\texttt{nosuchprog}).
+    \item \textbf{Part 2:} Procesul zombie apare în sistem marcat cu \texttt{Z} deoarece a fost finalizat, dar procesul său părinte a fost introdus într-un \texttt{sleep} artificial, nerealizând încă apelul de golire \texttt{waitpid}.
+    \item \textbf{Part 3:} La rularea comenzii de redirectare, descriptorul \texttt{1 (stdout)} a fost închis voluntar, iar funcția \texttt{open} i-a ocupat spațiul, devenind noua țintă pentru outputul standard al comenzii \texttt{ls}.
+    \item \textbf{Part 4:} Comanda \texttt{wc} rămâne blocată la nesfârșit dacă \texttt{close(p[1])} este lăsat activ în părinte, deoarece sistemul de operare refuză să trimită semnalul de terminare \texttt{EOF} cât timp există un proces care menține deschis canalul de scriere pe pipe.
+\end{enumerate}
+
+\section{Concluzii}
+Laboratorul demonstrează controlul total pe care nucleul îl oferă prin abstractizarea intrărilor și ieșirilor. Fie că scriem date pe ecranul unui terminal, într-un fișier text (redirectare \texttt{>}) sau în memoria RAM (printr-un \texttt{pipe}), kernel-ul tratează aceste operațiuni identic datorită manipulării descriptorilor prin funcția \texttt{dup}.
+\end{document}
