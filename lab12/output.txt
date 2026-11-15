@@ -1,0 +1,99 @@
+===== PART 1: prodcons =====
+$ ./prodcons
+put 1    (in buffer: 1)
+put 2    (in buffer: 2)
+put 3    (in buffer: 3)
+put 4    (in buffer: 4)
+            take 1   (in buffer: 3)
+put 5    (in buffer: 4)
+            take 2   (in buffer: 3)
+put 6    (in buffer: 4)
+            take 3   (in buffer: 3)
+put 7    (in buffer: 4)
+            take 4   (in buffer: 3)
+put 8    (in buffer: 4)
+            take 5   (in buffer: 3)
+            take 6   (in buffer: 2)
+            take 7   (in buffer: 1)
+            take 8   (in buffer: 0)
+--- lock inainte de sem_wait(&empty) ---
+$ timeout 5 ./prodcons
+put 1    (in buffer: 1)
+put 2    (in buffer: 2)
+put 3    (in buffer: 3)
+put 4    (in buffer: 4)
+exit code: 124
+
+===== PART 2: condvar =====
+$ ./condvar
+B: not ready, I sleep
+A: message written
+B: I read "hello"
+--- if (!ready) ---
+$ ./condvar
+B: not ready, I sleep
+A: message written
+B: I read "hello"
+
+===== PART 3: readers =====
+$ ./readers
+writer 1 writes 10 (alone)
+reader 1 reads 10   (readers inside: 1)
+reader 2 reads 10   (readers inside: 2)
+reader 3 reads 10   (readers inside: 3)
+writer 2 writes 20 (alone)
+
+===== PART 4: deadlock =====
+$ timeout 5 ./deadlock; echo "exit code: $?"
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+--- fara sleep(1), de 10 ori ---
+run 1:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 2:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 3:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 4:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 5:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 6:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 7:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 8:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 9:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+run 10:
+one: I have A, I want B
+two: I have B, I want A
+exit code: 124
+--- dupa fix (A apoi B si in two) ---
+$ timeout 5 ./deadlock; echo "exit code: $?"
+one: I have A, I want B
+one: I have both
+two: I have B, I want A
+two: I have both
+done
+exit code: 0

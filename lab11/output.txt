@@ -1,0 +1,95 @@
+===== PART 1: race =====
+$ ./race
+counter = 1044369 (expected 2000000)
+$ ./race
+counter = 1093544 (expected 2000000)
+$ ./race
+counter = 1041945 (expected 2000000)
+
+===== PART 2: mutex si sem =====
+$ ./mutex
+counter = 2000000 (expected 2000000)
+$ ./mutex
+counter = 2000000 (expected 2000000)
+$ ./mutex
+counter = 2000000 (expected 2000000)
+$ ./sem
+counter = 2000000 (expected 2000000)
+$ ./sem
+counter = 2000000 (expected 2000000)
+$ ./sem
+counter = 2000000 (expected 2000000)
+--- sem_init(&s, 0, 2) ---
+$ ./sem
+counter = 1990835 (expected 2000000)
+$ ./sem
+counter = 1937654 (expected 2000000)
+$ ./sem
+counter = 1921909 (expected 2000000)
+--- time ---
+$ time ./race
+counter = 1031595 (expected 2000000)
+
+real	0m0.014s
+user	0m0.025s
+sys	0m0.001s
+$ time ./mutex
+counter = 2000000 (expected 2000000)
+
+real	0m0.196s
+user	0m0.390s
+sys	0m0.001s
+$ time ./sem
+counter = 2000000 (expected 2000000)
+
+real	0m0.402s
+user	0m0.468s
+sys	0m0.331s
+
+===== PART 3: order =====
+$ ./order
+B: waiting for the message...
+A: message written
+B: I read "hello"
+--- sem_init(&ready, 0, 1) ---
+$ ./order
+B: waiting for the message...
+B: I read ""
+A: message written
+
+===== PART 4: parking =====
+$ ./parking
+car 1 enters (inside: 1)
+car 2 enters (inside: 2)
+car 3 enters (inside: 3)
+car 1 leaves (inside: 2)
+car 2 leaves (inside: 1)
+car 4 enters (inside: 2)
+car 5 enters (inside: 3)
+car 3 leaves (inside: 2)
+car 6 enters (inside: 3)
+car 4 leaves (inside: 2)
+car 6 leaves (inside: 1)
+car 5 leaves (inside: 0)
+--- PLACES 1 ---
+$ ./parking
+car 1 enters (inside: 1)
+car 1 leaves (inside: 0)
+car 2 enters (inside: 1)
+car 2 leaves (inside: 0)
+car 3 enters (inside: 1)
+car 3 leaves (inside: 0)
+car 4 enters (inside: 1)
+car 4 leaves (inside: 0)
+car 5 enters (inside: 1)
+car 5 leaves (inside: 0)
+car 6 enters (inside: 1)
+car 6 leaves (inside: 0)
+
+===== OPTIONAL: atomic =====
+$ time ./atomic
+counter = 2000000 (expected 2000000)
+
+real	0m0.079s
+user	0m0.153s
+sys	0m0.003s

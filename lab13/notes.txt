@@ -1,0 +1,31 @@
+Lab 13: Semaphores in Your Own Kernel (xv6)
+Rulat pe vaio (QEMU 8.2.7, 3 CPU), output in output.txt.
+
+Check 1: fara partea de kernel, sem_init/sem_down/sem_up dau "unknown sys call 24/25/26"
+si intorc -1. sem_down nu blocheaza, deci "child:" apare INAINTE de "parent:", iar ping/pong
+se amesteca.
+Check 2: cu kernel/sem.c, copilul doarme in sem_down pana la sem_up, iar ping/pong alterneaza
+strict -> semtest: OK.
+
+1. Fara lock, de ce se amesteca literele?
+   mix scrie cate o litera per write(): o linie de 30 de litere + '\n' costa 31 de apeluri
+   de sistem. Intre oricare doua apeluri, procesul celalalt (pe alt CPU, din 3) poate face si
+   el write(), deci literele A si b se intercaleaza.
+
+2. Ce doua linii fac din linie o sectiune critica?
+   sem_down(3);  inainte de bucla for care scrie linia
+   sem_up(3);    dupa bucla
+   (semaforul 3 porneste de la 1 -> lock)
+
+3. De ce "while (s->value == 0)" si nu "if"?
+   sem_up face wakeup(s), care trezeste TOATE procesele care dorm pe adresa s, dar adauga o
+   singura unitate. Primul care ia spinlock-ul face value--, iar ceilalti gasesc din nou 0 si
+   trebuie sa se culce la loc. while re-verifica valoarea dupa fiecare trezire.
+
+4. De ce release(&s->lock) inainte de sleep()?
+   sem_up trebuie sa faca acquire(&s->lock) ca sa incrementeze valoarea si sa apeleze wakeup.
+   Daca procesul ar dormi tinand spinlock-ul, sem_up s-ar invarti la nesfarsit in acquire,
+   iar cel care doarme nu ar mai fi trezit: deadlock. In plus, in xv6 un spinlock tinut
+   inseamna intreruperi dezactivate pe acel CPU, iar scheduler-ul nu permite sa dormi cu el
+   ("sched locks" panic). sleep_prepare(s) inainte de release asigura ca un sem_up venit
+   intre release si sleep nu se pierde (sleep() se intoarce imediat).

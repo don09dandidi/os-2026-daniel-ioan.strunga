@@ -1,0 +1,77 @@
+# Check 1: doar partea user (sem_init/sem_down/sem_up necunoscute in kernel)
+$ semtest
+3 semtest: unknown sys call 24
+4 semtest: unknown sys call 25
+child: I ran after the parent
+parent: done, I let the child go
+3 semtest: unknown sys call 26
+3 semtest: unknown sys call 24
+3 semtest: unknown sys call 24
+3 semtest: unknown sys call 25
+p5 semtest: unknown sys call 25
+i ng  p1o
+n3 semtest: unknown sys call 26
+g3 semtest: unknown sys call 25
+pin g 12
+
+5 semtest: unknown sys call 26
+3 semtest: unknown sys call 26
+5 semtest: unknown sys call 25
+ 3 semtest: unknown sys call 25
+ popnign 2g 3
+
+3 semtest: unknown sys call 26
+5 semtest: unknown sys call 26
+5 semtest: unknown sys call 25
+  pong 3
+5 semtest: unknown sys call 26
+semtest: OK
+
+# Check 2: cu kernel/sem.c
+$ semtest
+parent: done, I let the child go
+child: I ran after the parent
+ping 1
+  pong 1
+ping 2
+  pong 2
+ping 3
+  pong 3
+semtest: OK
+
+# Part 3: mix fara lock (de doua ori)
+$ mix
+AbAbbAbAbAbAbAbAbbbbAbbbbbbAbAbAbAbAbAbAbAbAAbbbbA
+AbAbAbbbAbAbAbAbAbAbbbAb
+bbAbAbAbAbAAAbAbAbAAbAbAbAbbbbA
+AAAAbAbAAbAbAbAbAbAbAbAbbA
+AAAbAbAbAbAbAbAbAAbAbAbAbAbbAbAbAbbbAbA
+AbAbAbAbAbAbAAAAb
+bAbAbAbAbAbbAbAAAbAbAbAbAbAbAAAbAAAAAbAbAbAbbAbAAbAbA
+
+bAbAbAbAbAbAbAbAbAbAbAbAbAAbAbAAAAbbAbAbAAAbAAbAbAbAbAb
+bbbbb
+$ mix
+AbAbAbAbAbbbAbAbAbAbAbAbAbAbAbAbAbAbAbAbAbAbAbAbAAAbAbAbAbAb
+bb
+bAbAbAbAbAbAbAbAbAbAbAbAbAbAbbAbAbAbAbAbAbAbAbAbAbAbAbA
+AbAbAb
+bbAbbAbAbAbAbAbAbAbAbAbAbAbAbbbbAAAAbAbAbAbAbAbAbAb
+bAbAbAbAbAbAb
+bAbbAbbbbAbAbAbAbAbbbAbAbAAbAbAbAbAbAbAbA
+AbAbAbAbAbAbAbAbAbAbAbAb
+bAbAbAbAbAbAbAbbAbAbAbAbAAAbAbAbAbAbA
+AAAAAAAAAAA
+
+# Part 3: mix cu lock
+$ mix lock
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
