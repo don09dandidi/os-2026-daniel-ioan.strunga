@@ -1,0 +1,172 @@
+===== Part 1 =====
+$ strace -f -e trace=openat,read,write,close ls -l
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libselinux.so.1", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\0\0\0\0\0\0\0\0"..., 832) = 832
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\220\243\2\0\0\0\0\0"..., 832) = 832
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libpcre2-8.so.0", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\0\0\0\0\0\0\0\0"..., 832) = 832
+close(3)                                = 0
+openat(AT_FDCWD, "/proc/filesystems", O_RDONLY|O_CLOEXEC) = 3
+read(3, "nodev\tsysfs\nnodev\ttmpfs\nnodev\tpr"..., 1024) = 364
+read(3, "", 1024)                       = 0
+close(3)                                = 0
+openat(AT_FDCWD, ".", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3
+close(4)                                = 0
+close(4)                                = 0
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 4
+read(4, "# /etc/nsswitch.conf\n#\n# Example"..., 4096) = 494
+read(4, "", 4096)                       = 0
+close(4)                                = 0
+openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 4
+read(4, "root:x:0:0:root:/root:/bin/bash\n"..., 4096) = 3333
+close(4)                                = 0
+close(4)                                = 0
+close(4)                                = 0
+openat(AT_FDCWD, "/etc/group", O_RDONLY|O_CLOEXEC) = 4
+read(4, "root:x:0:\ndaemon:x:1:\nbin:x:2:\ns"..., 4096) = 971
+close(4)                                = 0
+close(3)                                = 0
+openat(AT_FDCWD, "/usr/share/zoneinfo/Europe/Chisinau", O_RDONLY|O_CLOEXEC) = 3
+read(3, "TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\20\0\0\0\20\0\0\0\0"..., 4096) = 2424
+read(3, "TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\20\0\0\0\20\0\0\0\0"..., 4096) = 1509
+close(3)                                = 0
+write(1, "total 12\n-rw-r--r-- 1 root root "..., 169total 12
+-rw-r--r-- 1 root root  114 Nov 15 14:17 Makefile
+-rwxr-xr-x 1 root root  748 Nov 15 14:17 lab9_commands.sh
+-rw-r--r-- 1 root root 1202 Nov 15 14:17 syscalls.c
+) = 169
+close(1)                                = 0
+close(2)                                = 0
++++ exited with 0 +++
+
+$ strace -c ls -l >/dev/null
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 17.63    0.000213          12        17           mmap
+ 13.41    0.000162          10        16           close
+  8.36    0.000101           9        11           read
+  7.95    0.000096           7        13           fstat
+  7.78    0.000094           9        10           openat
+  5.13    0.000062          12         5           mprotect
+  4.22    0.000051          12         4         4 connect
+  3.97    0.000048          12         4           socket
+  2.81    0.000034          11         3         3 lgetxattr
+  2.73    0.000033          11         3           statx
+  2.57    0.000031          31         1           getrandom
+  2.48    0.000030          10         3           listxattr
+  2.48    0.000030          10         3           newfstatat
+  2.40    0.000029           9         3           lseek
+  2.15    0.000026          13         2           getdents64
+  2.07    0.000025          12         2         2 statfs
+  1.66    0.000020          10         2         2 ioctl
+  1.66    0.000020          10         2           pread64
+  1.57    0.000019           6         3           brk
+  1.24    0.000015          15         1           munmap
+  0.91    0.000011           5         2         2 access
+  0.83    0.000010          10         1           write
+  0.83    0.000010          10         1           set_tid_address
+  0.83    0.000010          10         1           set_robust_list
+  0.83    0.000010          10         1           prlimit64
+  0.75    0.000009           9         1           arch_prctl
+  0.75    0.000009           9         1           rseq
+  0.00    0.000000           0         1           execve
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001208          10       117        13 total
+
+===== Part 2 =====
+$ gcc -Wall -Wextra -o syscalls syscalls.c
+$ ./syscalls
+open returned descriptor 3
+write sent 14 bytes
+read got 14 bytes: hello, kernel
+$ wc -c note.txt
+14 note.txt
+
+$ strace -e trace=openat,write,read,close ./syscalls
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\220\243\2\0\0\0\0\0"..., 832) = 832
+close(3)                                = 0
+openat(AT_FDCWD, "note.txt", O_WRONLY|O_CREAT|O_TRUNC, 0644) = 3
+write(3, "hello, kernel\n", 14)         = 14
+close(3)                                = 0
+openat(AT_FDCWD, "note.txt", O_RDONLY)  = 3
+read(3, "hello, kernel\n", 63)          = 14
+close(3)                                = 0
+write(1, "open returned descriptor 3\nwrite"..., 80open returned descriptor 3
+write sent 14 bytes
+read got 14 bytes: hello, kernel
+) = 80
++++ exited with 0 +++
+
+$ strace -c ./syscalls >/dev/null
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+  0.00    0.000000           0         2           read
+  0.00    0.000000           0         2           write
+  0.00    0.000000           0         4           close
+  0.00    0.000000           0         3           fstat
+  0.00    0.000000           0         8           mmap
+  0.00    0.000000           0         3           mprotect
+  0.00    0.000000           0         1           munmap
+  0.00    0.000000           0         3           brk
+  0.00    0.000000           0         1         1 ioctl
+  0.00    0.000000           0         2           pread64
+  0.00    0.000000           0         1         1 access
+  0.00    0.000000           0         1           execve
+  0.00    0.000000           0         1           arch_prctl
+  0.00    0.000000           0         1           set_tid_address
+  0.00    0.000000           0         4           openat
+  0.00    0.000000           0         1           set_robust_list
+  0.00    0.000000           0         1           prlimit64
+  0.00    0.000000           0         1           getrandom
+  0.00    0.000000           0         1           rseq
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.000000           0        41         2 total
+
+===== Part 3 =====
+$ strace -f -e trace=write ls -l 2>&1 >/dev/null | grep -c '^write'
+1
+$ strace -f -e trace=openat ls -l 2>&1 >/dev/null | grep -c '^openat'
+10
+$ strace -e trace=write ./syscalls 2>&1 >/dev/null | grep -c '^write'
+2
+$ strace -e trace=write ./syscalls 2>&1 | grep -c '^write'   # fara >/dev/null
+3
+
+# TTY (stdout pe terminal, strace -o in fisier)
+$ strace -o ls_tty.txt -e trace=write ls -l; grep -c '^write' ls_tty.txt
+6
+$ strace -o sc_tty.txt -e trace=write ./syscalls; grep -c '^write' sc_tty.txt
+4
+write(1, "open returned descriptor 3\n", 27) = 27
+write(3, "hello, kernel\n", 14)         = 14
+write(1, "write sent 14 bytes\n", 20)   = 20
+write(1, "read got 14 bytes: hello, kernel"..., 33) = 33
++++ exited with 0 +++
+
+# Part 2 pe terminal (TTY): strace -e trace=openat,write,read,close ./syscalls
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\220\243\2\0\0\0\0\0"..., 832) = 832
+close(3)                                = 0
+openat(AT_FDCWD, "note.txt", O_WRONLY|O_CREAT|O_TRUNC, 0644) = 3
+write(1, "open returned descriptor 3\n", 27open returned descriptor 3
+) = 27
+write(3, "hello, kernel\n", 14)         = 14
+write(1, "write sent 14 bytes\n", 20write sent 14 bytes
+)   = 20
+close(3)                                = 0
+openat(AT_FDCWD, "note.txt", O_RDONLY)  = 3
+read(3, "hello, kernel\n", 63)          = 14
+write(1, "read got 14 bytes: hello, kernel"..., 33read got 14 bytes: hello, kernel
+) = 33
+close(3)                                = 0
++++ exited with 0 +++
