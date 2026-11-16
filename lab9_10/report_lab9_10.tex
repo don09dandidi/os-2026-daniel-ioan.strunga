@@ -1,0 +1,177 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+
+\lstset{
+  backgroundcolor=\color{termbg},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  captionpos=b,
+  frame=single,
+  keepspaces=true,
+  numbers=left,
+  numbersep=6pt,
+  numberstyle=\tiny\color{codegray},
+  showstringspaces=false,
+  tabsize=2
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo.png}{\includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 9 \& 10}}\\[0.4cm]
+    {\LARGE \textbf{Watching System Calls (Linux) \& Add a System Call (xv6)}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Scopul lucrării}
+Această lucrare combinată are un dublu obiectiv. Pe de o parte (Lab 9 - Track A), se urmărește observarea apelurilor de sistem declanșate de programe reale în Linux folosind utilitarul \texttt{strace} și exersarea apelurilor POSIX fundamentale de I/O (\texttt{open}, \texttt{read}, \texttt{write}, \texttt{close}) omițând bibliotecile de nivel înalt. Pe de altă parte (Lab 10 - Track B), se vizează extinderea nucleului xv6 prin implementarea unui apel de sistem complet nou (\texttt{trace}) capabil să monitorizeze execuția altor syscall-uri pe baza unor măști de biți moștenite între procese.
+
+\section{Laboratorul 9: Watching System Calls (Linux)}
+\subsection{Codul sursă POSIX I/O (\texttt{syscalls.c})}
+\begin{lstlisting}[language=C]
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int main(void) {
+    int fd = open("note.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) { perror("open write"); return 1; }
+    printf("open returned descriptor %d\n", fd);
+    write(fd, "hello, kernel\n", 14);
+    printf("write sent 14 bytes\n");
+    close(fd);
+
+    fd = open("note.txt", O_RDONLY);
+    if (fd < 0) { perror("open read"); return 1; }
+    char buf[16];
+    read(fd, buf, 14);
+    buf[14] = '\0';
+    printf("read got 14 bytes: %s", buf);
+    close(fd);
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Ieșirile din terminal (strace)}
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+$ strace -c ls -l >/dev/null
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 17.63    0.000213          12        17           mmap
+ 13.41    0.000162          10        16           close
+  8.36    0.000101           9        11           read
+  7.78    0.000094           9        10           openat
+  0.83    0.000010          10         1           write
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001208                   117        13 total
+\end{lstlisting}
+\caption{Figure 9.1 -- Statistica syscall-urilor pentru ls -l (117 apeluri totale pe x86\_64)}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+$ strace -e trace=openat,write,read,close ./syscalls
+openat(AT_FDCWD, "note.txt", O_WRONLY|O_CREAT|O_TRUNC, 0644) = 3
+write(1, "open returned descriptor 3\n", 27) = 27
+write(3, "hello, kernel\n", 14)         = 14
+write(1, "write sent 14 bytes\n", 20)   = 20
+close(3)                                = 0
+openat(AT_FDCWD, "note.txt", O_RDONLY)  = 3
+read(3, "hello, kernel\n", 63)          = 14
+write(1, "read got 14 bytes: hello, kernel"..., 33) = 33
+close(3)                                = 0
+\end{lstlisting}
+\caption{Figure 9.2 -- Urmărirea programului C propriu. Se observă cum kernel-ul refolosește descriptorul 3.}
+\end{figure}
+
+\subsection{Răspunsuri (Observe Lab 9)}
+\begin{enumerate}
+    \item \textbf{Cum afișează \texttt{ls} pe ecran?} Comanda \texttt{ls} scrie conținutul pe ecran apelând funcția de sistem \texttt{write}, direcționând datele către descriptorul de fișier \texttt{1} (\texttt{stdout}).
+    \item \textbf{De ce fișierul primește descriptorul 3?} La pornirea procesului, kernel-ul asociază implicit 0, 1 și 2. Deoarece regula este alocarea celui mai mic număr liber, primul fișier deschis primește \textbf{3}. După \texttt{close(3)}, numărul redevine disponibil.
+    \item \textbf{De ce obținem rezultate diferite fără \texttt{>/dev/null}?} Textul printat de propriul program (ex: \textit{„write sent...”}) va fi interceptat de terminal. Linia conține cuvântul \texttt{write}, așa că regula \texttt{grep} face un match fals, numărând eronat 3 apariții în loc de 2.
+\end{enumerate}
+
+\section{Laboratorul 10: Add a System Call: trace (xv6)}
+\subsection{Codul sursă user-space (\texttt{user/trace.c})}
+\begin{lstlisting}[language=C]
+#include "kernel/param.h"
+#include "kernel/types.h"
+#include "kernel/stat.h"
+#include "user/user.h"
+
+int main(int argc, char *argv[]) {
+  if (argc < 3) {
+    fprintf(2, "Usage: %s mask command\n", argv[0]);
+    exit(1);
+  }
+  if (trace(atoi(argv[1])) < 0) {
+    fprintf(2, "%s: trace failed\n", argv[0]);
+    exit(1);
+  }
+  exec(argv[2], &argv[2]);
+  exit(0);
+}
+\end{lstlisting}
+
+\subsection{Ieșirile din terminal (xv6 emulator)}
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+$ trace 32 grep hello README
+3: syscall read -> 1023
+3: syscall read -> 965
+3: syscall read -> 453
+3: syscall read -> 0
+\end{lstlisting}
+\caption{Figure 10.1 -- Izolarea apelurilor de sistem 'read' (masca 32)}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{lstlisting}[language=bash]
+$ trace 2 usertests forkforkfork
+usertests starting
+test forkforkfork: 5: syscall fork -> 6
+6: syscall fork -> 7
+7: syscall fork -> 8
+...
+9: syscall fork -> -1
+OK
+ALL TESTS PASSED
+\end{lstlisting}
+\caption{Figure 10.2 -- Verificarea mecanismului de moștenire a măștii în timpul creării de procese multiple}
+\end{figure}
+
+\subsection{Răspunsuri (Observe Lab 10)}
+\begin{enumerate}
+    \item \textbf{De ce 32 izolează \texttt{read}?} Valoarea $32$ este $2^5$. Apelul \texttt{SYS\_read} are ID-ul $5$. Shiftarea la stânga (\texttt{1 << 5}) setează exact bitul corespunzător.
+    \item \textbf{Cum se moștenește masca prin \texttt{fork}?} În funcția \texttt{kfork()} am adăugat \texttt{np->trace\_mask = p->trace\_mask;}, procesul copil copiind starea de monitorizare a părintelui.
+    \item \textbf{De ce \texttt{echo hi} generează două \texttt{write}?} Programul apelează \texttt{write} o dată pentru șirul \texttt{hi}, și a doua oară pentru terminatorul de rând (\texttt{\textbackslash n}).
+    \item \textbf{De ce se loghează \texttt{printk} după apelul sistem?} Pentru a putea prelua și printa valoarea returnată de acel apel, salvată în \texttt{p->trapframe->a0} doar la finalizare.
+    \item \textbf{Cum formăm masca pentru \texttt{open} și \texttt{close}?} \texttt{SYS\_open} = 15 ($2^{15} = 32768$), \texttt{SYS\_close} = 21 ($2^{21} = 2097152$). Adunate rezultă \textbf{2129920}.
+\end{enumerate}
+
+\section{Concluzii (Comparare Linux - xv6)}
+Prin desfășurarea laboratoarelor 9 și 10 am studiat interfața nativă de comunicare dintre aplicațiile din user-space și kernel, implementată printr-un perete de securitate bazat pe syscall-uri. Pe Linux (Lab 9), ne-am bazat pe \texttt{strace} și am observat efortul masiv depus de kernel în fundal și abstractizarea bibliotecii \texttt{libc}. Pe xv6 (Lab 10), am dezvoltat manual un subsistem de audit folosind o mască bitwise performantă ($O(1)$) pentru a izola și urmări apelurile. Ambele medii au confirmat principiul arhitecturii POSIX de bază privind reutilizarea descriptorilor.
+\end{document}
