@@ -16,40 +16,37 @@
     \centering
     \IfFileExists{utm_logo.png}{\includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]}{\vspace*{2cm}}
     {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
-    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
-    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[2.5cm]
     {\Large \textbf{LUCRAREA DE LABORATOR NR. 4}}\\[0.4cm]
-    {\LARGE \textbf{Argumente în C și integrarea în xv6}}\\[0.4cm]
-    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    {\LARGE \textbf{Mediul xv6 și argumentele în C}}\\[2.5cm]
     \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
-    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\end{minipage}
     \vfill{\large Chișinău --- 2026}
 \end{titlepage}
 \newpage
 
-\section{Scopul lucrării}
-Analiza modului în care sistemul de operare parsează și transmite argumentele liniei de comandă către un program C, folosind variabilele \texttt{argc} și \texttt{argv}. S-a efectuat de asemenea integrarea unui nou program C în kernel-ul educațional xv6.
+\section{Răspunsuri Teoretice (Observe)}
+\subsection{Comparație BASH (Linux) vs XV6}
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|p{6cm}|p{6cm}|}
+\hline
+\textbf{Comandă} & \textbf{Bash (Linux)} & \textbf{xv6 shell} \\ \hline
+\texttt{ls} & Suportă zeci de flag-uri (\texttt{-l, -a, -t}) și culori. & Minimalist, doar listează conținutul directorului. \\ \hline
+\texttt{cd} & Built-in foarte complex, suportă \texttt{\textasciitilde}, \texttt{-} (înapoi). & Built-in extrem de simplu, bazat pe \texttt{chdir()}. \\ \hline
+\texttt{grep} & Suportă regex extins (PCRE), flag-uri (\texttt{-v, -i, -c}). & Filtrare simplă a rândurilor. \\ \hline
+Redirectări & Complexe (\texttt{>>}, \texttt{2>\&1}, here-docs). & Suportă doar \texttt{>} și \texttt{<} de bază. \\ \hline
+\end{tabular}
+\end{table}
 
-\section{Desfășurarea lucrării}
-\subsection{Partea 1: Argumente în Linux}
-\begin{figure}[h!]
-\begin{lstlisting}[language=bash]
-user@user-VPCEH1L0E:~/os-lab4$ ./args_linux hello world
-argc = 3
-argv[0] = [./args_linux]
-argv[1] = [hello]
-argv[2] = [world]
-\end{lstlisting}
-\caption{Figure 4.1 -- Procesarea argumentelor standard în Linux}
-\end{figure}
-
-\subsection{Răspunsuri (Observe)}
+\subsection{Problema comenzii \texttt{cd}}
 \begin{enumerate}
-    \item \texttt{argc} reprezintă numărul total de argumente, inclusiv numele executabilului. \texttt{argv} este un array de pointeri către șiruri de caractere (string-uri).
-    \item Argumentul de la indexul 0 (\texttt{argv[0]}) este întotdeauna calea sau numele programului rulat (ex: \texttt{./args\_linux}).
-    \item Pentru a rula \texttt{args} în xv6, a trebuit să îl adăugăm în lista \texttt{UPROGS} din \texttt{Makefile}, pentru ca la execuția \texttt{make qemu} acesta să fie compilat în sistemul de fișiere virtual.
+    \item \textbf{De ce \texttt{cd} nu poate fi un program separat (cum este \texttt{ls})?} 
+    Pentru a executa un program separat, shell-ul folosește apelul \texttt{fork()} pentru a crea un proces copil, iar copilul folosește \texttt{exec()} pentru a rula programul. Dacă \texttt{cd} ar fi un program separat, procesul copil ar fi cel care și-ar schimba directorul de lucru. Imediat ce copilul și-ar termina execuția, shell-ul (procesul părinte) ar rămâne în exact același director ca înainte. Pentru ca shell-ul să își schimbe \textit{propriul} director, \texttt{cd} trebuie să fie o comandă nativă (\textbf{built-in}) scrisă direct în codul sursă al shell-ului (apelând \texttt{chdir()} în procesul curent).
+    
+    \item \textbf{Soluția pentru rularea succesivă:} Dacă vrem să listăm fișierele dintr-un folder folosind xv6 fără a ne muta definitiv în el, putem transmite calea direct programului: \texttt{ls d}.
 \end{enumerate}
 
 \section{Concluzii}
-Mecanismul de transmitere a argumentelor din mediul shell către funcția \texttt{main} din C este un standard respectat atât de kernelurile majore (Linux), cât și de cele educaționale (xv6). Observăm că \texttt{argv} expune utilizatorului date esențiale oferite direct de execuția shell-ului.
+Interfața unui sistem de operare dictează limitările mediului său. În timp ce Bash pe Linux este un program masiv cu capabilități de limbaj de programare (bucles, funcții), shell-ul din xv6 este doar o mască subțire peste apelurile de sistem, ilustrând perfect mecanica nudă a sistemelor de tip UNIX (motivul tehnic imperios pentru care funcții precum \texttt{cd} trebuie implementate intern).
 \end{document}

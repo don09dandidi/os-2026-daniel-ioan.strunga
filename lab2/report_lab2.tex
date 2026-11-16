@@ -1,0 +1,59 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+
+\newcommand{\studentgroup}{FAF-242}
+\definecolor{termbg}{rgb}{0.96,0.96,0.96}
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \IfFileExists{utm_logo.png}{\includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]}{\vspace*{2cm}}
+    {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[2.5cm]
+    {\Large \textbf{LUCRAREA DE LABORATOR NR. 2}}\\[0.4cm]
+    {\LARGE \textbf{Utilitarul sleep în xv6}}\\[2.5cm]
+    \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\end{minipage}
+    \vfill{\large Chișinău --- 2026}
+\end{titlepage}
+\newpage
+
+\section{Scopul lucrării}
+Implementarea primului program în spațiul utilizator (user-space) pentru sistemul de operare educațional xv6: utilitarul \texttt{sleep}.
+
+\section{Desfășurarea lucrării}
+\subsection{Codul sursă (\texttt{sleep.c})}
+Deoarece sistemul xv6 curent nu suportă apelul standard \texttt{sleep()} direct în modul cerut, am implementat pauza folosind un loop cu apelul de sistem \texttt{pause()}.
+\begin{lstlisting}[language=C]
+#include "kernel/types.h"
+#include "kernel/stat.h"
+#include "user/user.h"
+
+int main(int argc, char *argv[]) {
+  if(argc < 2){
+    fprintf(2, "Usage: sleep ticks\n");
+    exit(1);
+  }
+  int ticks = atoi(argv[1]);
+  for (int i = 0; i < ticks; i++) {
+      pause();
+  }
+  exit(0);
+}
+\end{lstlisting}
+
+\section{Răspunsuri (Observe)}
+\begin{enumerate}
+    \item \textbf{Cum este recunoscut noul program de către sistem?} Pentru ca xv6 să compileze și să includă comanda \texttt{sleep} în sistemul său de fișiere, fișierul sursă trebuie adăugat în \texttt{Makefile} la secțiunea \texttt{UPROGS}, sub forma \texttt{\$U/\_sleep}.
+\end{enumerate}
+
+\section{Concluzii}
+Adăugarea unui utilitar nou în xv6 presupune scrierea codului C bazat pe apelurile expuse în \texttt{user.h} și modificarea lanțului de compilare (\texttt{Makefile}). Adaptarea funcției prin \texttt{pause()} demonstrează necesitatea de a lucra cu primitivele specifice nucleului curent.
+\end{document}

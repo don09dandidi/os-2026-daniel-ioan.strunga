@@ -16,42 +16,24 @@
     \centering
     \IfFileExists{utm_logo.png}{\includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]}{\vspace*{2cm}}
     {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
-    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
-    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[2.5cm]
     {\Large \textbf{LUCRAREA DE LABORATOR NR. 3}}\\[0.4cm]
-    {\LARGE \textbf{Bash, scripting și filtre de text}}\\[0.4cm]
-    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
+    {\LARGE \textbf{Bash, scripting și filtre de text}}\\[2.5cm]
     \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
-    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\end{minipage}
     \vfill{\large Chișinău --- 2026}
 \end{titlepage}
 \newpage
 
-\section{Scopul lucrării}
-Familiarizarea cu linia de comandă Linux și automatizarea sarcinilor recurente prin scrierea de scripturi Bash. S-au utilizat utilitare standard (grep, cut, sort, uniq, wc) pentru a procesa, filtra și extrage statistici dintr-un fișier jurnal (\texttt{access.log}).
-
-\section{Desfășurarea lucrării}
-\subsection{Codul scripturilor (\texttt{oneliners.sh} și \texttt{report.sh})}
-Am creat \texttt{oneliners.sh} pentru a răspunde cu o singură linie de comandă la fiecare cerință, utilizând pipe-uri pentru a lega output-ul unei comenzi la input-ul alteia. În \texttt{report.sh} am implementat logica de bash scripting iterativ.
-
-\begin{figure}[h!]
-\begin{lstlisting}[language=bash]
-user@user-VPCEH1L0E:~/os-lab3$ ./report.sh access.log
-500 requests, 100 failed
-user0: 15 failures
-user1: 14 failures
-...
-\end{lstlisting}
-\caption{Figure 3.1 -- Rularea și output-ul scriptului report.sh}
-\end{figure}
-
-\subsection{Răspunsuri (Observe)}
+\section{Răspunsuri Teoretice (Observe)}
 \begin{enumerate}
-    \item Cererile eșuate au fost identificate filtrând liniile care conțin cuvântul "FAIL" cu \texttt{grep -c}.
-    \item Pentru paginile distincte am folosit \texttt{cut} pentru a extrage coloana paginii, urmat de \texttt{sort -u}.
-    \item Utilizatorul cu cele mai multe erori a fost extras prin numărarea aparițiilor unice și sortarea lor numerică descrescătoare (\texttt{sort -rn | head -1}).
+    \item \textbf{Ce face \texttt{ls -t}?} Sortează fișierele și directoarele în funcție de timpul modificării, cele mai recente fiind afișate primele.
+    \item \textbf{Ce este globbing-ul?} Este procesul prin care shell-ul expandează caractere wildcard (precum \texttt{*} care ține locul oricărui șir de caractere, sau \texttt{?} pentru un singur caracter) în nume reale de fișiere, înainte de a trimite argumentele comenzii.
+    \item \textbf{Ghilimele simple (' ') vs duble (" ")?} Ghilimelele simple blochează complet interpretarea (literal string), pe când cele duble permit shell-ului să rezolve variabilele (ex. \texttt{\$USER}) păstrând restul textului literal.
+    \item \textbf{Ce face \texttt{2>\&1}?} Redirecționează fluxul de erori (descriptorul 2 - stderr) către același loc unde este direcționat fluxul standard de ieșire (descriptorul 1 - stdout).
+    \item \textbf{Ce este shebang-ul (\texttt{\#!/bin/bash})?} Este prima linie dintr-un script care îi spune sistemului de operare ce interpretor trebuie folosit pentru a executa comenzile din acel fișier.
+    \item \textbf{De ce avem nevoie de \texttt{chmod +x}?} În Linux, fișierele noi nu au drept de execuție implicit din motive de securitate. Comanda \texttt{chmod +x} adaugă permisiunea de a rula fișierul ca pe un program.
+    \item \textbf{Scripturile:} În \texttt{report.sh}, operatorul logic SAU se scrie corect \texttt{||}. În \texttt{oneliners.sh}, pentru a prinde egalitățile de la Q4, am extras valoarea maximă cu \texttt{head} și am filtrat toate intrările egale cu acel maxim folosind \texttt{awk}.
 \end{enumerate}
 
-\section{Concluzii}
-Utilizarea pipe-urilor în Linux reprezintă o metodă extrem de eficientă de procesare a datelor brute. Am demonstrat că operațiuni complexe de analiză a logurilor pot fi reduse la o singură linie de cod prin combinarea filtrelor standard, eliminând nevoia unor limbaje de programare de nivel înalt pentru sarcini administrative.
 \end{document}
