@@ -10,6 +10,7 @@ jobs:
         uses: xu-cheng/latex-action@v3
         with:
           root_file: |
+            lab2/report_lab2.tex
             lab3/report_lab3.tex
             lab4/report_lab4.tex
             lab5/report_lab5.tex

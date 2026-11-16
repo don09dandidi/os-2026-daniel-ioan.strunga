@@ -6,34 +6,494 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{caption}
-
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
 \newcommand{\studentgroup}{FAF-242}
 \definecolor{termbg}{rgb}{0.96,0.96,0.96}
-\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
-
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,showstringspaces=false,columns=fullflexible,keepspaces=true,upquote=true}
+% Captură centrată, cu legenda centrată sub ea: Figure X.Y -- Nume
+\newenvironment{shot}[2]{\def\shotnum{#1}\def\shotcap{#2}\par\medskip\noindent\begin{minipage}{\linewidth}}{\par\vspace{2pt}\centering\small Figure \shotnum{} -- \shotcap\par\end{minipage}\par\medskip}
+% Întrebare din enunț + răspuns
+\newcommand{\Q}[2]{\item \textbf{#1}\\ #2}
 \begin{document}
+\sloppy
 \begin{titlepage}
     \centering
-    \IfFileExists{utm_logo.png}{\includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]}{\vspace*{2cm}}
+    \includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]
     {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
-    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[2.5cm]
-    {\Large \textbf{LUCRAREA DE LABORATOR NR. 3}}\\[0.4cm]
-    {\LARGE \textbf{Bash, scripting și filtre de text}}\\[2.5cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{RAPORT}}\\[0.2cm]
+    {\large la lucrarea de laborator nr. 3}\\[0.4cm]
+    {\LARGE \textbf{The Command Line: Shell, Pipes and Text Filters}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
     \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
-    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\end{minipage}
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
     \vfill{\large Chișinău --- 2026}
 \end{titlepage}
 \newpage
 
-\section{Răspunsuri Teoretice (Observe)}
+\section*{Scopul lucrării}
+Lucrul rapid în bash, anticiparea a ceea ce face shell-ul cu o linie de comandă înainte de execuție (globbing, ghilimele, expansiuni), redirectarea ieșirilor și răspunsul la întrebări reale despre date cu o singură linie formată din filtre mici legate prin pipe-uri. Toate comenzile au fost rulate pe Ubuntu (laptop Sony VAIO, utilizator \texttt{user}).
+
+\section*{Pregătire: setul de date}
+\begin{shot}{0.1}{Generarea fișierului access.log (500 de linii)}
+\begin{lstlisting}[language=bash]
+$ mkdir -p ~/os-lab3 && cd ~/os-lab3
+$ for i in $(seq 1 500); do
+    echo "2026-10-05 10:$(printf %02d $((i % 60))) user$((i % 7)) $([ $((i % 5)) -eq 0 ] && echo FAIL || echo OK) /page$((i % 4))"
+  done > access.log
+$ head -3 access.log ; wc -l access.log
+2026-10-05 10:01 user1 OK /page1
+2026-10-05 10:02 user2 OK /page2
+2026-10-05 10:03 user3 OK /page3
+500 access.log
+\end{lstlisting}
+\end{shot}
+
+%======================================================================
+\section{Part 1. Move fast, find help}
+
+\textbf{Tab.} La \texttt{ls /usr/sh} + Tab Tab shell-ul a completat singura variantă posibilă, \texttt{/usr/share/}; dacă ar fi existat mai multe potriviri, al doilea Tab le-ar fi listat pe toate. La \texttt{cd /et} + Tab a completat direct \texttt{/etc/}, fiind o singură potrivire. Lista de candidați pe care o folosește Tab se poate afișa cu \texttt{compgen}:
+\begin{shot}{1.1}{Tab completion (candidații oferiți de Tab)}
+\begin{lstlisting}[language=bash]
+$ compgen -f /usr/sh      # ce ofera Tab Tab dupa "ls /usr/sh"
+/usr/share
+$ compgen -d /et          # ce completeaza Tab dupa "cd /et"
+/etc
+\end{lstlisting}
+\end{shot}
+
+\textbf{Ctrl+R.} După trei comenzi oarecare (de exemplu \texttt{date}, \texttt{whoami}, \texttt{pwd}), Ctrl+R deschide promptul \texttt{(reverse-i-search)}. La primele litere ale primei comenzi (\texttt{da}), bash găsește cea mai recentă comandă din istoric care le conține (\texttt{date}), iar Enter o rulează din nou. Ctrl+R caută deci înapoi în istoricul comenzilor (\texttt{\textasciitilde/.bash\_history}).
+
+\begin{shot}{1.2}{Output-ul comenzilor type și which}
+\begin{lstlisting}[language=bash]
+$ type cd ; type ls ; type echo ; which ls
+cd is a shell builtin
+ls is aliased to `ls --color=auto'
+echo is a shell builtin
+/usr/bin/ls
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{1.3}{Directoarele din PATH}
+\begin{lstlisting}[language=bash]
+$ echo $PATH
+/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+$ echo $PATH | tr ':' '\n'
+/usr/local/sbin
+/usr/local/bin
+/usr/sbin
+/usr/bin
+/sbin
+/bin
+/usr/games
+/usr/local/games
+/snap/bin
+$ echo $PATH | tr ':' '\n' | wc -l
+9
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{1.4}{Codul de ieșire al unei comenzi inexistente}
+\begin{lstlisting}[language=bash]
+$ nosuchprog ; echo "exit code: $?"
+nosuchprog: command not found
+exit code: 127
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{1.5}{Ajutor fără browser: ls -{}-help, man -k, help cd, man ls}
+\begin{lstlisting}[language=bash]
+$ ls --help | head -3
+Usage: ls [OPTION]... [FILE]...
+List information about the FILEs (the current directory by default).
+Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
+$ man -k "list directory"
+dir (1)              - list directory contents
+ls (1)               - list directory contents
+ntfsls (8)           - list directory contents on an NTFS filesystem
+vdir (1)             - list directory contents
+$ help cd | head -2
+cd: cd [-L|[-P [-e]] [-@]] [dir]
+    Change the shell working directory.
+$ man ls        # in man: /sort, apoi n pentru urmatoarea potrivire
+       -t     sort by time, newest first; see --time
+\end{lstlisting}
+\end{shot}
+
+\subsection*{Observe (Part 1)}
 \begin{enumerate}
-    \item \textbf{Ce face \texttt{ls -t}?} Sortează fișierele și directoarele în funcție de timpul modificării, cele mai recente fiind afișate primele.
-    \item \textbf{Ce este globbing-ul?} Este procesul prin care shell-ul expandează caractere wildcard (precum \texttt{*} care ține locul oricărui șir de caractere, sau \texttt{?} pentru un singur caracter) în nume reale de fișiere, înainte de a trimite argumentele comenzii.
-    \item \textbf{Ghilimele simple (' ') vs duble (" ")?} Ghilimelele simple blochează complet interpretarea (literal string), pe când cele duble permit shell-ului să rezolve variabilele (ex. \texttt{\$USER}) păstrând restul textului literal.
-    \item \textbf{Ce face \texttt{2>\&1}?} Redirecționează fluxul de erori (descriptorul 2 - stderr) către același loc unde este direcționat fluxul standard de ieșire (descriptorul 1 - stdout).
-    \item \textbf{Ce este shebang-ul (\texttt{\#!/bin/bash})?} Este prima linie dintr-un script care îi spune sistemului de operare ce interpretor trebuie folosit pentru a executa comenzile din acel fișier.
-    \item \textbf{De ce avem nevoie de \texttt{chmod +x}?} În Linux, fișierele noi nu au drept de execuție implicit din motive de securitate. Comanda \texttt{chmod +x} adaugă permisiunea de a rula fișierul ca pe un program.
-    \item \textbf{Scripturile:} În \texttt{report.sh}, operatorul logic SAU se scrie corect \texttt{||}. În \texttt{oneliners.sh}, pentru a prinde egalitățile de la Q4, am extras valoarea maximă cu \texttt{head} și am filtrat toate intrările egale cu acel maxim folosind \texttt{awk}.
+\Q{1. Which of cd, ls, echo are built-ins, and why MUST cd be one?}
+{\texttt{cd} și \texttt{echo} sunt built-in (\texttt{shell builtin}); \texttt{ls} este un program extern, \texttt{/usr/bin/ls} (în bash interactiv este și alias pentru \texttt{ls --color=auto}). \texttt{cd} trebuie să fie built-in pentru că directorul curent este un atribut al fiecărui proces. Un program extern ar rula într-un proces copil (\texttt{fork} + \texttt{exec}) și ar schimba doar directorul copilului, care se termină imediat; shell-ul ar rămâne în același director. De aceea shell-ul apelează \texttt{chdir()} chiar în procesul său.}
+\Q{2. How many directories are in your PATH, and in which one is ls?}
+{În \texttt{PATH} sunt \textbf{9} directoare (figura 1.3). \texttt{ls} se află în \texttt{/usr/bin} (\texttt{which ls} $\rightarrow$ \texttt{/usr/bin/ls}). Shell-ul caută comanda în directoarele din \texttt{PATH}, în ordine, și o rulează pe prima găsită.}
+\Q{3. What exit code does a command that is not found return?}
+{\textbf{127} (figura 1.4). Prin convenție, 127 înseamnă „command not found”, iar 126 „găsită, dar nu se poate executa”.}
+\Q{4. Which option of ls sorts by modification time? (find it in man ls)}
+{Opțiunea \textbf{\texttt{-t}}: \emph{„sort by time, newest first”} (figura 1.5); cele mai noi fișiere apar primele. Cu \texttt{-r} ordinea se inversează (\texttt{ls -tr}: cele mai vechi primele).}
 \end{enumerate}
 
+%======================================================================
+\section{Part 2. What the shell does to your line}
+
+\begin{shot}{2.1}{Fișierele create în directorul play}
+\begin{lstlisting}[language=bash]
+$ mkdir -p ~/os-lab3/play && cd ~/os-lab3/play
+$ touch a.c b.c file1.txt file2.txt notes.txt "alfa beta.txt"
+$ ls
+ a.c  'alfa beta.txt'   b.c   file1.txt   file2.txt   notes.txt
+\end{lstlisting}
+\end{shot}
+
+\textbf{PREDICT.} Pentru fiecare linie am notat întâi predicția, apoi am rulat comanda:
+
+{\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{3.2cm}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{4.2cm}@{}}
+\toprule
+\textbf{Command} & \textbf{My prediction} & \textbf{Real output} & \textbf{Explanation (if different)}\\
+\midrule
+\endhead
+\texttt{echo *.c} & \texttt{a.c b.c} & \texttt{a.c b.c} & La fel. Shell-ul înlocuiește \texttt{*.c} cu fișierele potrivite.\\
+\texttt{echo file?.txt} & \texttt{file1.txt file2.txt} & \texttt{file1.txt file2.txt} & La fel. \texttt{?} = exact un caracter.\\
+\texttt{echo [a-b]*} & \texttt{a.c b.c} & \texttt{a.c alfa beta.txt b.c} & Diferit: am uitat că și \texttt{alfa beta.txt} începe cu \texttt{a}. Numele apare ca două cuvinte, fiindcă \texttt{echo} le separă cu spațiu.\\
+\texttt{echo *.xyz} & nimic (linie goală) & \texttt{*.xyz} & Diferit: fără nicio potrivire, bash lasă șablonul neschimbat (fără \texttt{nullglob}).\\
+\texttt{ls alfa beta.txt} & eroare & două erori: \texttt{cannot access 'alfa'}, \texttt{cannot access 'beta.txt'} & La fel, dar sunt două erori: shell-ul a împărțit numele în două argumente.\\
+\texttt{ls "alfa beta.txt"} & \texttt{alfa beta.txt} & \texttt{alfa beta.txt} & La fel. Ghilimelele fac din nume un singur argument.\\
+\texttt{echo '\$HOME' "\$HOME" \textbackslash{}\$HOME} & \texttt{\$HOME /home/user \$HOME} & \texttt{\$HOME /home/user \$HOME} & La fel.\\
+\texttt{echo \{1..5\} ; echo \$((7 * 6))} & \texttt{1 2 3 4 5} și \texttt{42} & \texttt{1 2 3 4 5} și \texttt{42} & La fel: brace expansion și expansiune aritmetică.\\
+\texttt{echo "today is \$(date +\%A), I am \$(whoami)"} & \texttt{today is Monday, I am user} & \texttt{today is Monday, I am user} & La fel: \texttt{\$(...)} funcționează și între ghilimele duble.\\
+\texttt{touch log\{1..3\}.txt \&\& ls log*} & \texttt{log1.txt log2.txt log3.txt} & \texttt{log1.txt log2.txt log3.txt} & La fel: \texttt{\{1..3\}} creează trei nume, apoi \texttt{log*} le găsește.\\
+\bottomrule
+\end{longtable}
+}
+
+\begin{shot}{2.2}{Rezultatele globbing-ului}
+\begin{lstlisting}[language=bash]
+$ echo *.c
+a.c b.c
+$ echo file?.txt
+file1.txt file2.txt
+$ echo [a-b]*
+a.c alfa beta.txt b.c
+$ echo *.xyz
+*.xyz
+$ touch log{1..3}.txt && ls log*
+log1.txt  log2.txt  log3.txt
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{2.3}{Eroarea lui ls la un nume cu spațiu și corectarea ei}
+\begin{lstlisting}[language=bash]
+$ ls alfa beta.txt
+ls: cannot access 'alfa': No such file or directory
+ls: cannot access 'beta.txt': No such file or directory
+$ ls "alfa beta.txt"
+alfa beta.txt
+$ ls alfa\ beta.txt
+alfa beta.txt
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{2.4}{Ghilimele simple, ghilimele duble și backslash}
+\begin{lstlisting}[language=bash]
+$ echo '$HOME' "$HOME" \$HOME
+$HOME /home/user $HOME
+$ echo {1..5} ; echo $((7 * 6))
+1 2 3 4 5
+42
+$ echo "today is $(date +%A), I am $(whoami)"
+today is Monday, I am user
+\end{lstlisting}
+\end{shot}
+
+\subsection*{Observe (Part 2)}
+\begin{enumerate}
+\Q{1. For each line: your prediction, the real output, and one sentence if they differ.}
+{Vezi tabelul de mai sus. Au fost două diferențe: \texttt{[a-b]*} a prins și \texttt{alfa beta.txt}, iar \texttt{*.xyz} fără potrivire rămâne literal.}
+\Q{2. echo knows nothing about files, yet echo *.c printed file names. Who produced them?}
+{\textbf{Shell-ul.} Înainte să pornească programul, bash face \emph{pathname expansion} (globbing): înlocuiește \texttt{*.c} cu lista fișierelor din director care se potrivesc. \texttt{echo} primește deja argumentele \texttt{a.c} și \texttt{b.c} și doar le afișează; nu vede niciodată caracterul \texttt{*}.}
+\Q{3. Why did ls alfa beta.txt fail? Give two different ways to fix it.}
+{Shell-ul împarte linia în cuvinte la spații, deci \texttt{ls} a primit două argumente, \texttt{alfa} și \texttt{beta.txt}, iar niciunul nu există. Corectări (figura 2.3): (1) ghilimele, \texttt{ls "alfa beta.txt"} (sau \texttt{'alfa beta.txt'}); (2) escaparea spațiului cu backslash, \texttt{ls alfa\textbackslash{} beta.txt}. O a treia variantă este Tab: \texttt{ls alf}+Tab scrie singur \texttt{alfa\textbackslash{} beta.txt}.}
+\Q{4. What is the difference between single and double quotes? (and why ls shows 'alfa beta.txt' in quotes)}
+{Între \textbf{ghilimele simple} totul este literal: nu se expandează nimic (\texttt{'\$HOME'} $\rightarrow$ \texttt{\$HOME}). Între \textbf{ghilimele duble} se fac în continuare expansiunile cu \texttt{\$}: variabile (\texttt{"\$HOME"} $\rightarrow$ \texttt{/home/user}), \texttt{\$(...)} și \texttt{\$((...))}. Se opresc însă globbing-ul și împărțirea în cuvinte. Backslash-ul (\texttt{\textbackslash{}\$HOME}) face literal doar caracterul următor.\\
+\texttt{ls} afișează \texttt{'alfa beta.txt'} între apostrofuri pentru că, atunci când scrie într-un terminal, GNU \texttt{ls} folosește implicit \texttt{--quoting-style=shell-escape}. Astfel numele afișat poate fi copiat direct într-o comandă și rămâne un singur argument. Când ieșirea merge într-un pipe sau fișier, apostrofurile nu mai apar (\texttt{ls | cat} afișează \texttt{alfa beta.txt}).}
+\end{enumerate}
+
+%======================================================================
+\section{Part 3. Redirection, chaining and jobs}
+
+\begin{shot}{3.1}{stdout și stderr în fișiere separate}
+\begin{lstlisting}[language=bash]
+$ cd ~/os-lab3
+$ ls /etc /nope > out.txt 2> err.txt
+$ wc -l out.txt ; cat err.txt
+250 out.txt
+ls: cannot access '/nope': No such file or directory
+$ ls /etc /nope > all.txt 2>&1 ; tail -2 all.txt
+xml
+zsh_command_not_found
+$ echo first > notes.md ; echo second >> notes.md ; cat notes.md
+first
+second
+$ wc -l < access.log
+500
+$ wc -l access.log
+500 access.log
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{3.2}{Compararea ordinii redirectărilor}
+\begin{lstlisting}[language=bash]
+$ ls /etc /nope > all.txt 2>&1 ; grep -c nope all.txt
+1
+$ ls /etc /nope 2>&1 > all.txt ; grep -c nope all.txt
+ls: cannot access '/nope': No such file or directory
+0
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{3.3}{Operatorii ; \&\& ||}
+\begin{lstlisting}[language=bash]
+$ ls /nope 2> /dev/null || echo "failed with code $?"
+failed with code 2
+$ mkdir -p tmp && cd tmp && echo "I am in $(pwd)" ; cd ~/os-lab3
+I am in /home/user/os-lab3/tmp
+$ true && echo "and: runs"; false && echo "and: skipped"; false || echo "or: runs"; false ; echo "semicolon: always"
+and: runs
+or: runs
+semicolon: always
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{3.4}{Pornirea unui job în fundal și oprirea lui}
+\begin{lstlisting}[language=bash]
+$ sleep 100 &
+$ jobs ; kill %1 ; jobs
+[1]+  Running                 sleep 100 &
+[1]+  Terminated              sleep 100
+\end{lstlisting}
+\end{shot}
+
+\subsection*{Observe (Part 3)}
+\begin{enumerate}
+\Q{1. Which file got the error message, and which got the listing?}
+{Mesajul de eroare (\texttt{cannot access '/nope'}) a ajuns în \texttt{err.txt}, prin \texttt{2>}, adică descriptorul 2, stderr. Lista din \texttt{/etc} (250 de linii) a ajuns în \texttt{out.txt}, prin \texttt{>}, adică descriptorul 1, stdout. Cu \texttt{> all.txt 2>\&1} ambele ajung în \texttt{all.txt}.}
+\Q{2. What is the difference between > all.txt 2>\&1 and 2>\&1 > all.txt? Try both and explain why the result differs.}
+{Redirectările se aplică \textbf{de la stânga la dreapta}, iar \texttt{2>\&1} înseamnă „fă ca fd 2 să arate unde arată fd 1 \emph{acum}”, nu „pentru totdeauna”.
+\begin{itemize}
+  \item \texttt{> all.txt 2>\&1}: întâi stdout trece în \texttt{all.txt}, apoi stderr îl copiază, deci și eroarea ajunge în fișier (\texttt{grep -c nope} $\rightarrow$ 1).
+  \item \texttt{2>\&1 > all.txt}: întâi stderr copiază stdout-ul de atunci (terminalul), apoi doar stdout e mutat în fișier. Eroarea apare pe ecran, iar în fișier nu e (\texttt{grep -c nope} $\rightarrow$ 0), ca în figura 3.2.
+\end{itemize}}
+\Q{3. Why does wc -l < access.log print only a number, while wc -l access.log also prints the file name?}
+{La \texttt{wc -l < access.log} fișierul îl deschide \textbf{shell-ul} și îl leagă la stdin-ul lui \texttt{wc}; \texttt{wc} nu primește niciun argument, citește din stdin și nu cunoaște numele fișierului, deci afișează doar \texttt{500}. La \texttt{wc -l access.log} numele este argument, \texttt{wc} deschide singur fișierul și îl afișează lângă număr: \texttt{500 access.log}.}
+\Q{4. Explain each operator in one sentence: ; \&\& ||.}
+{\begin{itemize}
+  \item \texttt{;} rulează comenzile una după alta, indiferent dacă prima a reușit sau nu.
+  \item \texttt{\&\&} rulează comanda din dreapta doar dacă cea din stânga a reușit (cod de ieșire 0).
+  \item \texttt{||} rulează comanda din dreapta doar dacă cea din stânga a eșuat (cod diferit de 0); de exemplu \texttt{failed with code 2} în figura 3.3.
+\end{itemize}}
+\end{enumerate}
+
+%======================================================================
+\section{Part 4. Answer questions with one-liners}
+Fiecare linie din \texttt{access.log} are forma: dată, oră, utilizator, rezultat (\texttt{OK}/\texttt{FAIL}), pagină. Toate liniile sunt salvate în \texttt{oneliners.sh}, fiecare cu întrebarea ca comentariu deasupra; scriptul rulează cu \texttt{bash oneliners.sh} în \texttt{\textasciitilde/os-lab3}.
+
+\begin{shot}{4.1}{Q1 -- Numărul de cereri eșuate}
+\begin{lstlisting}[language=bash]
+# Q1. How many requests failed?
+$ grep -c FAIL access.log
+100
+\end{lstlisting}
+\end{shot}
+\textbf{Q1. How many requests failed?} \textbf{100} de cereri.
+
+\begin{shot}{4.2}{Q2 -- Paginile distincte}
+\begin{lstlisting}[language=bash]
+# Q2. How many different pages were requested, and which?
+$ cut -d' ' -f5 access.log | sort -u | awk '{print} END{print NR " different pages"}'
+/page0
+/page1
+/page2
+/page3
+4 different pages
+\end{lstlisting}
+\end{shot}
+\textbf{Q2. How many different pages were requested, and which?} \textbf{4} pagini: \texttt{/page0}, \texttt{/page1}, \texttt{/page2}, \texttt{/page3}.
+
+\begin{shot}{4.3}{Q3 -- Numărul de accesări pe pagină}
+\begin{lstlisting}[language=bash]
+# Q3. How many requests did each page get?
+$ cut -d' ' -f5 access.log | sort | uniq -c | sort -rn
+    125 /page3
+    125 /page2
+    125 /page1
+    125 /page0
+\end{lstlisting}
+\end{shot}
+\textbf{Q3. How many requests did each page get?} Fiecare pagină a primit \textbf{125} de cereri; verificare: $4 \times 125 = 500$, adică numărul de linii din log.
+
+\begin{shot}{4.4}{Q4 -- Utilizatorii cu cele mai multe eșecuri}
+\begin{lstlisting}[language=bash]
+# Q4. Which user or users have the most failed requests, and how many?
+$ grep FAIL access.log | cut -d' ' -f3 | sort | uniq -c | sort -rn | awk 'NR==1{m=$1} $1==m'
+     15 user5
+     15 user3
+\end{lstlisting}
+\end{shot}
+\textbf{Q4. Which user or users have the most failed requests, and how many?} \textbf{user3 și user5}, la egalitate, cu câte \textbf{15} eșecuri. Un simplu \texttt{head -1} ar fi afișat doar unul dintre ei și ar fi ascuns egalitatea; \texttt{awk} reține valoarea maximă din prima linie (\texttt{m}) și afișează toate liniile cu aceeași valoare. Verificare: $14+14+14+15+14+15+14 = 100$, egal cu Q1 (figura 5.2).
+
+\begin{shot}{4.5}{Q5 -- Cererile lui user3}
+\begin{lstlisting}[language=bash]
+# Q5. How many requests did user3 make, and how many of them failed?
+$ echo "user3: $(grep -c ' user3 ' access.log) requests, $(grep ' user3 ' access.log | grep -c FAIL) failed"
+user3: 72 requests, 15 failed
+\end{lstlisting}
+\end{shot}
+\textbf{Q5. How many requests did user3 make, and how many of them failed?} \textbf{72} de cereri, din care \textbf{15} eșuate. Spațiile din \texttt{' user3 '} asigură potrivirea exactă a câmpului.
+
+\begin{shot}{4.6}{Q6 -- Ultimele 3 cereri eșuate}
+\begin{lstlisting}[language=bash]
+# Q6. Print the last 3 failed requests, showing only time and user.
+$ grep FAIL access.log | tail -3 | cut -d' ' -f2,3
+10:10 user0
+10:15 user5
+10:20 user3
+\end{lstlisting}
+\end{shot}
+\textbf{Q6. Print the last 3 failed requests, showing only time and user.} \texttt{10:10 user0}, \texttt{10:15 user5}, \texttt{10:20 user3}.
+
+\begin{shot}{4.7}{Q7 -- Shell-urile de login din /etc/passwd}
+\begin{lstlisting}[language=bash]
+# Q7. Which login shells appear in /etc/passwd, and how many accounts use each?
+$ cut -d: -f7 /etc/passwd | sort | uniq -c | sort -rn
+     41 /usr/sbin/nologin
+      9 /bin/false
+      2 /bin/bash
+      1 /sbin/nologin
+      1 /bin/sync
+\end{lstlisting}
+\end{shot}
+\textbf{Q7. Which login shells appear in /etc/passwd, and how many accounts use each?} \texttt{/usr/sbin/nologin} -- 41, \texttt{/bin/false} -- 9, \texttt{/bin/bash} -- 2, \texttt{/sbin/nologin} -- 1, \texttt{/bin/sync} -- 1. Doar 2 conturi (\texttt{root} și \texttt{user}) au un shell real; restul sunt conturi de sistem care nu se pot autentifica.
+
+\begin{shot}{4.8}{Q8 -- Diferența dintre ls /etc și ls -l /etc}
+\begin{lstlisting}[language=bash]
+# Q8. Why do ls /etc | wc -l and ls -l /etc | wc -l differ by exactly one?
+$ ls /etc | wc -l ; ls -l /etc | wc -l
+249
+250
+$ ls -l /etc | head -1
+total 1272
+\end{lstlisting}
+\end{shot}
+\textbf{Q8. PREDICT, then explain: why do ls /etc | wc -l and ls -l /etc | wc -l differ by exactly one?} \emph{Predicție:} \texttt{ls -l} are în plus o linie de antet. \emph{Rezultat:} 249 față de 250. Diferența este prima linie a lui \texttt{ls -l}, \texttt{total 1272} (numărul total de blocuri ocupate), care nu e un fișier. În rest ambele comenzi afișează câte o linie pe intrare: când ieșirea este un pipe, \texttt{ls} scrie un nume pe linie, nu în coloane.
+
+\begin{shot}{4.9}{Rularea completă a oneliners.sh}
+\begin{lstlisting}[language=bash]
+$ bash oneliners.sh
+100
+/page0
+/page1
+/page2
+/page3
+4 different pages
+    125 /page3
+    125 /page2
+    125 /page1
+    125 /page0
+     15 user5
+     15 user3
+user3: 72 requests, 15 failed
+10:10 user0
+10:15 user5
+10:20 user3
+     41 /usr/sbin/nologin
+      9 /bin/false
+      2 /bin/bash
+      1 /sbin/nologin
+      1 /bin/sync
+ls /etc | wc -l = 249; ls -l /etc | wc -l = 250; extra line: total 1272
+50
+\end{lstlisting}
+\end{shot}
+
+\textbf{Bonus.} Liniile în care minutul se termină în 0 și cererea a eșuat:
+\begin{lstlisting}[language=bash]
+# Bonus. Failed requests whose minute ends in 0 (10:00, 10:10, ...)
+$ grep -E ' 10:[0-5]0 .* FAIL ' access.log | wc -l
+50
+\end{lstlisting}
+Sunt \textbf{50}. Explicație: \texttt{FAIL} apare când $i$ este multiplu de 5, iar minutul ($i \bmod 60$) se termină în 0 când $i$ este multiplu de 10, deci 50 de valori între 1 și 500.
+
+%======================================================================
+\section{Part 5. Your first script}
+
+\begin{shot}{5.1}{Conținutul report.sh}
+\begin{lstlisting}[language=bash]
+#!/bin/bash
+# usage: ./report.sh access.log
+log=$1
+if [ -z "$log" ] || [ ! -f "$log" ]; then
+    echo "no such file: $log" >&2
+    echo "usage: $0 <logfile>" >&2
+    exit 1
+fi
+total=$(wc -l < "$log")
+fails=$(grep -c FAIL "$log")
+echo "$total requests, $fails failed"
+for n in 0 1 2 3 4 5 6; do
+    cnt=$(grep " user$n " "$log" | grep -c FAIL)
+    echo "user$n: $cnt failures"
+done
+\end{lstlisting}
+\end{shot}
+TODO-ul este rezolvat de bucla \texttt{for}, care afișează \texttt{userN: X failures} pentru user0--user6. Condiția folosește operatorul \texttt{||}: scriptul se oprește cu eroare atât când lipsește argumentul, cât și când fișierul nu există.
+
+\begin{shot}{5.2}{Rularea scriptului pe access.log}
+\begin{lstlisting}[language=bash]
+$ ./report.sh access.log
+bash: ./report.sh: Permission denied
+$ ls -l report.sh
+-rw-r--r-- 1 user user 381 Nov 16 16:05 report.sh
+$ chmod +x report.sh
+$ ls -l report.sh
+-rwxr-xr-x 1 user user 381 Nov 16 16:05 report.sh
+$ ./report.sh access.log
+500 requests, 100 failed
+user0: 14 failures
+user1: 14 failures
+user2: 14 failures
+user3: 15 failures
+user4: 14 failures
+user5: 15 failures
+user6: 14 failures
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{5.3}{Tratarea erorii pentru un fișier lipsă}
+\begin{lstlisting}[language=bash]
+$ ./report.sh nope.log ; echo "exit code: $?"
+no such file: nope.log
+usage: ./report.sh <logfile>
+exit code: 1
+$ report.sh access.log ; echo "exit code: $?"
+report.sh: command not found
+exit code: 127
+\end{lstlisting}
+\end{shot}
+
+\subsection*{Observe (Part 5)}
+\begin{enumerate}
+\Q{1. What does the first line \#!/bin/bash do, and what happens if you run ./report.sh before chmod +x?}
+{\texttt{\#!/bin/bash} este \emph{shebang}-ul. La \texttt{exec}, kernelul vede că fișierul începe cu octeții \texttt{\#!} și pornește programul indicat, \texttt{/bin/bash}, cu calea scriptului ca argument. Așa știe sistemul că fișierul se rulează cu bash, nu cu alt interpretor.\\
+Înainte de \texttt{chmod +x}, fișierul are permisiunile \texttt{-rw-r--r--}, fără bitul de execuție. \texttt{./report.sh} dă \texttt{Permission denied}, cu codul de ieșire \textbf{126}: fișierul există, dar \texttt{execve()} refuză să-l execute. După \texttt{chmod +x} permisiunile devin \texttt{-rwxr-xr-x} și scriptul rulează (figura 5.2). Fără \texttt{chmod}, scriptul se poate rula doar cu \texttt{bash report.sh}, caz în care bash doar îl citește.}
+\Q{2. Why must you type ./report.sh and not just report.sh?}
+{Un nume fără \texttt{/} este căutat \textbf{doar în directoarele din \texttt{PATH}} (figura 1.3), iar directorul curent (\texttt{\textasciitilde/os-lab3}) nu este în \texttt{PATH}. De aceea \texttt{report.sh} dă \texttt{command not found} (127, figura 5.3). \texttt{./report.sh} este o cale explicită către fișierul din directorul curent, deci shell-ul nu mai caută în \texttt{PATH}. Directorul curent nu se pune în \texttt{PATH} din motive de siguranță: altfel un fișier numit \texttt{ls} dintr-un director străin ar putea fi rulat în locul programului real.}
+\Q{3. Why does the script write the error with >\&2 and end with exit 1?}
+{\texttt{>\&2} trimite mesajul pe \textbf{stderr}, nu pe stdout. Astfel eroarea apare pe ecran chiar dacă rezultatul scriptului e redirectat într-un fișier sau pipe (\texttt{./report.sh x.log > r.txt}), și nu ajunge amestecată cu datele. \texttt{exit 1} întoarce un \textbf{cod de ieșire diferit de 0}, adică „eșec”. Așa \texttt{\&\&}, \texttt{||}, \texttt{if} sau \texttt{cron} pot afla că scriptul nu a reușit: de exemplu \texttt{./report.sh nope.log || echo eroare}. Cu \texttt{exit 0}, sau fără \texttt{exit}, eroarea ar trece neobservată.}
+\end{enumerate}
+
+\section*{Concluzii}
+Shell-ul transformă linia înainte ca programul să pornească: face globbing (\texttt{*.c}), elimină ghilimelele, expandează variabilele și \texttt{\$(...)} și împarte linia în cuvinte. Programul primește doar rezultatul. Din acest motiv \texttt{echo *.c} afișează fișiere, iar \texttt{ls alfa beta.txt} eșuează. Redirectările se aplică de la stânga la dreapta, iar ordinea lui \texttt{2>\&1} schimbă rezultatul. \texttt{;}, \texttt{\&\&} și \texttt{||} folosesc codul de ieșire al comenzii anterioare. Filtrele mici (\texttt{grep}, \texttt{cut}, \texttt{sort}, \texttt{uniq}, \texttt{wc}) legate prin pipe-uri au răspuns la toate cele opt întrebări despre log, iar verificările (Q3 = 500, suma eșecurilor = Q1) confirmă că pipeline-urile filtrează ce trebuie. Scriptul \texttt{report.sh} arată ce face un script corect: shebang, bit de execuție, erori pe stderr și cod de ieșire diferit de 0 la eșec.
 \end{document}

@@ -6,54 +6,135 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{caption}
-
+\usepackage{booktabs}
+\usepackage{array}
 \newcommand{\studentgroup}{FAF-242}
 \definecolor{termbg}{rgb}{0.96,0.96,0.96}
-\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
-
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,showstringspaces=false,columns=fullflexible,keepspaces=true}
 \begin{document}
 \begin{titlepage}
     \centering
-    \IfFileExists{utm_logo.png}{\includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]}{\vspace*{2cm}}
+    \includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]
     {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
-    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[2.5cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
     {\Large \textbf{LUCRAREA DE LABORATOR NR. 2}}\\[0.4cm]
-    {\LARGE \textbf{Utilitarul sleep în xv6}}\\[2.5cm]
+    {\LARGE \textbf{Utilitarul \texttt{sleep} în xv6}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
     \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
-    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\end{minipage}
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
     \vfill{\large Chișinău --- 2026}
 \end{titlepage}
 \newpage
 
 \section{Scopul lucrării}
-Implementarea primului program în spațiul utilizator (user-space) pentru sistemul de operare educațional xv6: utilitarul \texttt{sleep}.
+Compilarea și rularea sistemului xv6-riscv în QEMU și adăugarea unui program utilizator nou, \texttt{sleep}, care primește numărul de tick-uri ca argument și apelează apelul de sistem corespunzător din kernel.
 
-\section{Desfășurarea lucrării}
-\subsection{Codul sursă (\texttt{sleep.c})}
-Deoarece sistemul xv6 curent nu suportă apelul standard \texttt{sleep()} direct în modul cerut, am implementat pauza folosind un loop cu apelul de sistem \texttt{pause()}.
+\section{Partea 1 și 2 --- rulare și explorare xv6}
+\subsection{Comenzi rulate în xv6 (QEMU)}
+\begin{lstlisting}[language=bash]
+$ make qemu
+$ ls
+$ cat README
+$ echo hello xv6
+hello xv6
+$ ls | grep c
+cat            2 3 36288
+echo           2 4 35152
+wc             2 19 37240
+sync           2 24 34600
+console        3 25 0
+$ wc README
+48 336 2441 README
+\end{lstlisting}
+
+\subsection{Răspunsuri (Partea 2)}
+\begin{enumerate}
+    \item \textbf{Trei programe incluse în xv6:} \texttt{ls}, \texttt{cat}, \texttt{echo} (plus \texttt{grep}, \texttt{wc}, \texttt{sh}).
+    \item \textbf{Două funcționalități ale SO necesare pentru pipe-uri:}
+    \begin{itemize}
+        \item procese multiple care rulează concurent: shell-ul creează câte un proces pentru fiecare parte a pipe-ului (\texttt{fork} + \texttt{exec}), iar planificatorul le alternează;
+        \item comunicarea între procese prin descriptori de fișiere: kernelul creează pipe-ul (\texttt{pipe()}), iar shell-ul mută capetele lui pe descriptorii 0 și 1 (\texttt{close} + \texttt{dup}).
+    \end{itemize}
+    \item \textbf{Shell-ul xv6 față de shell-ul Linux:} shell-ul xv6 este minimal: execută programe, are redirectări (\texttt{<}, \texttt{>}), pipe-uri, \texttt{;} și \texttt{\&}. Îi lipsesc istoricul, completarea cu Tab, variabilele de mediu, globbing-ul și \texttt{PATH}, pe care Bash le are.
+\end{enumerate}
+
+\section{Partea 3 --- analiza codului sursă}
+\subsection{Comenzi rulate în \texttt{\textasciitilde/xv6-riscv}}
+\begin{lstlisting}[language=bash]
+$ sed -n "1,30p" user/cat.c
+$ cat user/user.h
+$ grep -n "sys_read\|sys_write" kernel/sysfile.c | head
+69:sys_read(void)
+83:sys_write(void)
+$ grep -n -o "\b\(read\|write\|open\|close\|exit\)(" user/cat.c | sort -t: -k2 -u
+40:close(
+15:exit(
+35:open(
+12:read(
+13:write(
+\end{lstlisting}
+
+\subsection{Răspunsuri (Partea 3)}
+\begin{enumerate}
+    \item \textbf{Apeluri de sistem folosite în \texttt{user/cat.c}:}
+    \begin{itemize}
+        \item \texttt{read()} --- cere kernelului octeți dintr-un descriptor de fișier, puși într-un buffer al procesului;
+        \item \texttt{write()} --- cere kernelului să scrie octeții din buffer într-un descriptor (1 = stdout);
+        \item \texttt{open()} / \texttt{close()} --- deschid și eliberează fișierul primit ca argument;
+        \item \texttt{exit()} --- termină procesul și eliberează resursele lui.
+    \end{itemize}
+    \item \textbf{Unde este implementat \texttt{sys\_read}:} în \texttt{kernel/sysfile.c}, la linia 69 (\texttt{sys\_write} la linia 83).
+    \item \textbf{Diferența dintre \texttt{kernel/} și \texttt{user/}:} codul din \texttt{kernel/} rulează în modul privilegiat (supervisor mode), cu acces direct la hardware și la memoria fizică. Codul din \texttt{user/} rulează în user mode, în spațiul de adrese al procesului, și ajunge la resurse doar prin apeluri de sistem (\texttt{ecall}).
+\end{enumerate}
+
+\section{Partea 4 --- programul \texttt{sleep}}
+\subsection{Codul programului (\texttt{user/sleep.c})}
+{\sloppy Pe versiunea curentă de xv6 apelul de sistem care suspendă procesul se numește \texttt{pause(int)}; numele \texttt{sleep} a rămas doar în mecanismul intern de adormire a firelor din kernel (\texttt{sleep\_prepare()} în \texttt{kernel/proc.c}), deci un program care apelează \texttt{sleep(n)} nu se compilează.\par}
 \begin{lstlisting}[language=C]
 #include "kernel/types.h"
-#include "kernel/stat.h"
 #include "user/user.h"
 
-int main(int argc, char *argv[]) {
-  if(argc < 2){
-    fprintf(2, "Usage: sleep ticks\n");
+int
+main(int argc, char *argv[])
+{
+  if(argc != 2){
+    fprintf(2, "usage: sleep <ticks>\n");
     exit(1);
   }
-  int ticks = atoi(argv[1]);
-  for (int i = 0; i < ticks; i++) {
-      pause();
-  }
+  pause(atoi(argv[1])); // was sleep() before Aug 2025
   exit(0);
 }
 \end{lstlisting}
 
-\section{Răspunsuri (Observe)}
+\subsection{Integrarea în \texttt{Makefile}}
+În lista \texttt{UPROGS} s-a adăugat linia \verb|$U/_sleep\|. Regula generală \verb|$U/_%: $U/%.o ...| compilează \texttt{sleep.c}, îl leagă cu \texttt{ulib.o}, \texttt{usys.o}, \texttt{printf.o}, \texttt{umalloc.o}, iar \texttt{mkfs} copiază binarul \texttt{\_sleep} în imaginea \texttt{fs.img} sub numele \texttt{sleep}.
+
+\subsection{Rulare în QEMU}
+\begin{figure}[h!]
+\begin{lstlisting}
+$ sleep
+usage: sleep <ticks>
+$ echo before; sleep 100; echo after
+before
+after
+$ ls
+...
+sleep          2 5 34904
+...
+\end{lstlisting}
+\caption{Figure 2.1 -- \texttt{sleep} fără argument, cu 100 de tick-uri și prezența în sistemul de fișiere}
+\end{figure}
+
+\subsection{Răspunsuri (Observe)}
 \begin{enumerate}
-    \item \textbf{Cum este recunoscut noul program de către sistem?} Pentru ca xv6 să compileze și să includă comanda \texttt{sleep} în sistemul său de fișiere, fișierul sursă trebuie adăugat în \texttt{Makefile} la secțiunea \texttt{UPROGS}, sub forma \texttt{\$U/\_sleep}.
+    \item \textbf{Ce unitate de timp are argumentul?} Tick-uri ale timer-ului kernelului (în xv6 pe QEMU un tick este aproximativ 0,1 s), nu secunde. Între \texttt{before} și \texttt{after} trece vizibil timp, pentru că \texttt{sleep 100} blochează procesul circa 10 s.
+    \item \textbf{Ce se întâmplă fără argument?} Programul verifică \texttt{argc != 2}, scrie mesajul pe descriptorul 2 (stderr) și iese cu cod 1, ca în figura 2.1.
+    \item \textbf{De ce \texttt{sleep} este program separat și nu comandă internă?} Nu modifică starea shell-ului (spre deosebire de \texttt{cd}), așa că poate rula într-un proces copil după \texttt{fork}/\texttt{exec}.
+    \item \textbf{Cum ajunge apelul în kernel?} \texttt{pause()} este un stub generat de \texttt{usys.pl} care pune numărul apelului în \texttt{a7} și execută \texttt{ecall}; kernelul îl primește în \texttt{syscall()} și apelează \texttt{sys\_pause}, care adoarme procesul pe canalul \texttt{ticks} până când trec tick-urile cerute.
+    \item \textbf{Ce face \texttt{atoi}?} Convertește șirul din \texttt{argv[1]} în întreg; o valoare nenumerică dă 0 și programul iese imediat.
 \end{enumerate}
 
 \section{Concluzii}
-Adăugarea unui utilitar nou în xv6 presupune scrierea codului C bazat pe apelurile expuse în \texttt{user.h} și modificarea lanțului de compilare (\texttt{Makefile}). Adaptarea funcției prin \texttt{pause()} demonstrează necesitatea de a lucra cu primitivele specifice nucleului curent.
+Am compilat xv6, am adăugat programul \texttt{sleep} folosind \texttt{pause()} (apelul de sistem actual), l-am înregistrat în \texttt{UPROGS} și am verificat în QEMU cazul de eroare și cazul normal. Lucrarea a clarificat drumul complet: program utilizator, stub \texttt{usys}, \texttt{ecall}, tabelul de apeluri de sistem din kernel.
 \end{document}

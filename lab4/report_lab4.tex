@@ -6,47 +6,401 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{caption}
-
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
 \newcommand{\studentgroup}{FAF-242}
 \definecolor{termbg}{rgb}{0.96,0.96,0.96}
-\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single}
-
+\lstset{backgroundcolor=\color{termbg},basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,showstringspaces=false,columns=fullflexible,keepspaces=true,upquote=true}
+\newenvironment{shot}[2]{\def\shotnum{#1}\def\shotcap{#2}\par\medskip\noindent\begin{minipage}{\linewidth}}{\par\vspace{2pt}\centering\small Figure \shotnum{} -- \shotcap\par\end{minipage}\par\medskip}
+\newcommand{\Q}[2]{\item \textbf{#1}\\ #2}
 \begin{document}
+\sloppy
 \begin{titlepage}
     \centering
-    \IfFileExists{utm_logo.png}{\includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]}{\vspace*{2cm}}
+    \includegraphics[width=0.25\textwidth]{utm_logo.png}\\[0.6cm]
     {\large \textbf{UNIVERSITATEA TEHNICĂ A MOLDOVEI}}\\[0.2cm]
-    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[2.5cm]
-    {\Large \textbf{LUCRAREA DE LABORATOR NR. 4}}\\[0.4cm]
-    {\LARGE \textbf{Mediul xv6 și argumentele în C}}\\[2.5cm]
+    {\large Facultatea Calculatoare, Informatică și Microelectronică}\\[0.2cm]
+    {\large Departamentul Ingineria Software și Automatică}\\[2.5cm]
+    {\Large \textbf{RAPORT}}\\[0.2cm]
+    {\large la lucrarea de laborator nr. 4}\\[0.4cm]
+    {\LARGE \textbf{The xv6 Shell from the Outside}}\\[0.4cm]
+    {\large Disciplina: Sisteme de Operare}\\[2.5cm]
     \begin{minipage}{0.45\textwidth}\flushleft\textbf{Done by:}\\st. gr. \studentgroup\\Daniel-Ioan \textsc{Strunga}\end{minipage}\hfill
-    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\end{minipage}
+    \begin{minipage}{0.50\textwidth}\flushright\textbf{Checked by:}\\asist. univ. Patricia \textsc{Reițman}\\asist. univ. Marius \textsc{Dumitrașcu}\end{minipage}
     \vfill{\large Chișinău --- 2026}
 \end{titlepage}
 \newpage
 
-\section{Răspunsuri Teoretice (Observe)}
-\subsection{Comparație BASH (Linux) vs XV6}
-\begin{table}[h!]
-\centering
-\begin{tabular}{|l|p{6cm}|p{6cm}|}
-\hline
-\textbf{Comandă} & \textbf{Bash (Linux)} & \textbf{xv6 shell} \\ \hline
-\texttt{ls} & Suportă zeci de flag-uri (\texttt{-l, -a, -t}) și culori. & Minimalist, doar listează conținutul directorului. \\ \hline
-\texttt{cd} & Built-in foarte complex, suportă \texttt{\textasciitilde}, \texttt{-} (înapoi). & Built-in extrem de simplu, bazat pe \texttt{chdir()}. \\ \hline
-\texttt{grep} & Suportă regex extins (PCRE), flag-uri (\texttt{-v, -i, -c}). & Filtrare simplă a rândurilor. \\ \hline
-Redirectări & Complexe (\texttt{>>}, \texttt{2>\&1}, here-docs). & Suportă doar \texttt{>} și \texttt{<} de bază. \\ \hline
-\end{tabular}
-\end{table}
+\section*{Scopul lucrării}
+Folosirea shell-ului xv6 (\texttt{user/sh.c}, aproximativ 500 de linii) în paralel cu bash, pentru a descoperi prin experiment ce trebuie să facă un shell și ce adaugă bash peste minim. Se scrie un program care își afișează argumentele (\texttt{args}), ca să se vadă cine expandează \texttt{*} și cine elimină ghilimelele. Înainte de toate, programul \texttt{sleep} din Lab 2 se adaptează la xv6-ul actual. Lucrarea a fost făcută pe Ubuntu (laptop Sony VAIO), cu xv6-riscv rulat în QEMU.
 
-\subsection{Problema comenzii \texttt{cd}}
+%======================================================================
+\section{Part 1. Fix sleep for the current xv6}
+În august 2025 autorii xv6 au redenumit apelul de sistem \texttt{sleep()} în \texttt{pause()}, iar programul \texttt{sleep} din Lab 2 nu se mai compilează.
+
+\begin{shot}{1.1}{Rezultatul grep în user.h}
+\begin{lstlisting}[language=bash]
+$ cd ~/xv6-riscv
+$ grep -n "pause\|sleep" user/user.h
+25:int pause(int);
+\end{lstlisting}
+\end{shot}
+Arborele meu declară doar \texttt{pause(int)}; în \texttt{user.h} nu mai există niciun \texttt{sleep}. Varianta veche a programului, cu \texttt{sleep(atoi(argv[1]))}, compilată cu flag-urile din \texttt{Makefile}, dă eroare:
+\begin{lstlisting}
+user/sleep.c:12:3: error: implicit declaration of function 'sleep' [-Werror=implicit-function-declaration]
+   12 |   sleep(atoi(argv[1]));
+cc1: all warnings being treated as errors
+\end{lstlisting}
+
+\begin{shot}{1.2}{sleep.c actualizat și linia din UPROGS}
+\begin{lstlisting}[language=C]
+#include "kernel/types.h"
+#include "user/user.h"
+
+int
+main(int argc, char *argv[])
+{
+  if(argc != 2){
+    fprintf(2, "usage: sleep <ticks>\n");
+    exit(1);
+  }
+  pause(atoi(argv[1])); // was sleep() before Aug 2025
+  exit(0);
+}
+\end{lstlisting}
+\begin{lstlisting}[language=bash]
+$ grep -n "_sleep\|_args" Makefile
+135:	$U/_sleep\
+136:	$U/_args\
+\end{lstlisting}
+\end{shot}
+Fiecare linie din \texttt{UPROGS} începe cu TAB și se termină cu backslash, fără nimic după el.
+
+\begin{shot}{1.3}{sleep rulat în xv6, cu și fără argument}
+\begin{lstlisting}[language=bash]
+$ make qemu
+xv6 kernel is booting
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ sleep 20
+$ sleep
+usage: sleep <ticks>
+\end{lstlisting}
+\end{shot}
+\texttt{sleep 20} blochează shell-ul aproximativ 2 secunde (20 de tick-uri), apoi revine promptul. Fără argument, programul afișează mesajul de utilizare pe stderr și iese cu codul 1.
+
+%======================================================================
+\section{Part 2. bash versus the xv6 shell}
+Fiecare comandă a fost rulată de două ori: în bash, într-un director gol cu un fișier \texttt{README} (\texttt{mkdir \textasciitilde/shtest \&\& cd \textasciitilde/shtest \&\& touch README}), și la promptul \texttt{\$} din xv6.
+
+\begin{shot}{2.1}{Comenzile rulate în bash}
+\begin{lstlisting}[language=bash]
+$ echo hello > f ; cat < f
+hello
+$ ls | grep READ
+README
+$ (echo a; echo b) | wc
+      2       2       4
+$ echo one ; echo two
+one
+two
+$ echo bg &
+[1] 138221
+$ bg
+[1]+  Done                    echo bg
+$ ls *
+f  README
+$ echo $HOME
+/home/user
+$ echo "a b"
+a b
+$ mkdir d ; cd d ; ls ..
+d  f  README
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{2.2}{Aceleași comenzi rulate în xv6}
+\begin{lstlisting}[language=bash]
+$ echo hello > f ; cat < f
+hello
+$ ls | grep READ
+README         2 2 2441
+$ (echo a; echo b) | wc
+2 2 4
+$ echo one ; echo two
+one
+two
+$ echo bg &
+bg$
+$ ls *
+ls: cannot open *
+$ echo $HOME
+$HOME
+$ echo "a b"
+"a b"
+$ mkdir d ; cd d ; ls ..
+exec cd failed
+.              1 1 1024
+..             1 1 1024
+README         2 2 2441
+cat            2 3 36280
+...            (toate programele din /)
+f              2 26 6
+d              1 27 32
+$ ^[[A                 (sageata sus)
+exec ^[[A failed
+$ ec<Tab>
+exec ec failed
+$ ^R
+exec ^R failed
+\end{lstlisting}
+\end{shot}
+
+{\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{2.0cm}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{5.2cm}@{}}
+\toprule
+\textbf{Command} & \textbf{Tests} & \textbf{bash} & \textbf{xv6 (și de ce)}\\
+\midrule
+\endhead
+\texttt{echo hello > f ; cat < f} & redirection & \texttt{hello} & \texttt{hello}. Funcționează: \texttt{sh.c} are nodul \texttt{REDIR} pentru \texttt{<} și \texttt{>}.\\
+\texttt{ls | grep READ} & pipe & \texttt{README} & \texttt{README 2 2 2441}. Funcționează (nodul \texttt{PIPE}); linia e mai lungă pentru că \texttt{ls} din xv6 afișează și tipul, inode-ul și mărimea.\\
+\texttt{(echo a; echo b) | wc} & grouping, list & \texttt{2 2 4} & \texttt{2 2 4}. Funcționează: \texttt{parseblock} tratează parantezele, \texttt{LIST} tratează \texttt{;}.\\
+\texttt{echo one ; echo two} & sequence & \texttt{one}, \texttt{two} & \texttt{one}, \texttt{two}. Funcționează (nodul \texttt{LIST}).\\
+\texttt{echo bg \&} & background & \texttt{[1] 138221}, \texttt{bg}, apoi \texttt{[1]+ Done} & \texttt{bg\$}. Funcționează (nodul \texttt{BACK}), dar fără job control: nu afișează număr de job, iar textul se amestecă cu promptul.\\
+\texttt{ls *} & globbing & \texttt{f README} & \texttt{ls: cannot open *}. Nu există globbing: \texttt{ls} primește \texttt{*} literal.\\
+\texttt{echo \$HOME} & variables & \texttt{/home/user} & \texttt{\$HOME}. Nu există variabile; \texttt{\$} e un caracter obișnuit.\\
+\texttt{echo "a b"} & quotes & \texttt{a b} & \texttt{"a b"}. Ghilimelele nu sunt procesate, rămân în argumente.\\
+\texttt{mkdir d ; cd d ; ls ..} & PATH & conținutul directorului părinte: \texttt{d f README} & \texttt{exec cd failed}, apoi lista din \texttt{/}. \texttt{cd} e recunoscut doar la începutul liniei; în listă se încearcă \texttt{exec("cd")}, care nu există. Directorul nu se schimbă, iar \texttt{ls ..} rulează tot în \texttt{/}.\\
+săgeată sus, Tab, Ctrl+R & history, completion & comanda anterioară, completare, căutare în istoric & caracterele ajung brute în linie (\texttt{\textasciicircum{}[[A}, TAB, \texttt{\textasciicircum{}R}), iar shell-ul încearcă să le execute ca nume de program: \texttt{exec ... failed}.\\
+\bottomrule
+\end{longtable}
+}
+
+\begin{shot}{2.3}{ls eșuează după cd d, și varianta care funcționează}
+\begin{lstlisting}[language=bash]
+$ cd d
+$ ls
+exec ls failed
+$ /ls
+.              1 27 32
+..             1 1 1024
+$ /ls ..
+.              1 1 1024
+..             1 1 1024
+README         2 2 2441
+...
+$ cd /
+$ ls
+.              1 1 1024
+...
+\end{lstlisting}
+\end{shot}
+
+\subsection*{Observe (Part 2)}
 \begin{enumerate}
-    \item \textbf{De ce \texttt{cd} nu poate fi un program separat (cum este \texttt{ls})?} 
-    Pentru a executa un program separat, shell-ul folosește apelul \texttt{fork()} pentru a crea un proces copil, iar copilul folosește \texttt{exec()} pentru a rula programul. Dacă \texttt{cd} ar fi un program separat, procesul copil ar fi cel care și-ar schimba directorul de lucru. Imediat ce copilul și-ar termina execuția, shell-ul (procesul părinte) ar rămâne în exact același director ca înainte. Pentru ca shell-ul să își schimbe \textit{propriul} director, \texttt{cd} trebuie să fie o comandă nativă (\textbf{built-in}) scrisă direct în codul sursă al shell-ului (apelând \texttt{chdir()} în procesul curent).
-    
-    \item \textbf{Soluția pentru rularea succesivă:} Dacă vrem să listăm fișierele dintr-un folder folosind xv6 fără a ne muta definitiv în el, putem transmite calea direct programului: \texttt{ls d}.
+\Q{1. List the features both shells have, and the ones only bash has.}
+{\textbf{Ambele:} rularea programelor (\texttt{fork} + \texttt{exec} + \texttt{wait}), redirectările \texttt{<}, \texttt{>} (și \texttt{>>}), pipe-urile \texttt{|}, secvența \texttt{;}, gruparea cu \texttt{( )}, fundalul \texttt{\&} și built-in-ul \texttt{cd} (doar ca primă comandă din linie, în xv6).\\
+\textbf{Doar bash:} globbing (\texttt{*}, \texttt{?}, \texttt{[ ]}), variabile și expansiuni (\texttt{\$HOME}, \texttt{\$(...)}, \texttt{\$((...))}, \texttt{\{1..5\}}), ghilimele și backslash, căutarea în \texttt{PATH}, \texttt{\&\&} și \texttt{||}, \texttt{2>\&1}, job control (\texttt{jobs}, \texttt{kill \%1}, \texttt{Done}), istoric (săgeți, Ctrl+R), completare cu Tab, \texttt{cd} oriunde în linie, coduri de ieșire (\texttt{\$?}) și scripturi.}
+\Q{2. In xv6, ls stops working after cd d. Why? Find a way to run ls from inside d anyway.}
+{xv6 \textbf{nu are \texttt{PATH}}. Shell-ul apelează \texttt{exec("ls", argv)}, iar kernelul caută fișierul \texttt{ls} relativ la directorul curent. Toate programele xv6 se află în rădăcina \texttt{/} (au fost puse acolo de \texttt{mkfs} din \texttt{UPROGS}). Cât timp directorul curent este \texttt{/}, \texttt{ls} se găsește; în \texttt{d} nu există niciun fișier \texttt{ls}, deci \texttt{exec ls failed}.\\
+\textbf{Soluția}, în figura 2.3: calea absolută \texttt{/ls} (la fel \texttt{/cat}, \texttt{/echo} etc.), de exemplu \texttt{/ls} sau \texttt{/ls ..}. A doua variantă este revenirea în rădăcină cu \texttt{cd /} sau \texttt{cd ..}, după care \texttt{ls} funcționează din nou.}
+\Q{3. Which missing feature would you miss most in daily work, and which would be easiest to add?}
+{\textbf{Cel mai mult mi-ar lipsi} istoricul cu săgeți și completarea cu Tab, plus globbing-ul: fără ele trebuie rescrisă fiecare comandă și fiecare nume de fișier.\\
+\textbf{Cel mai ușor de adăugat} este un \texttt{PATH} minimal. În \texttt{runcmd}, cazul \texttt{EXEC}: dacă \texttt{exec(argv[0])} eșuează și numele nu conține \texttt{/}, se încearcă din nou cu \texttt{"/"} pus în față. Sunt câteva linii de cod, iar problema \texttt{exec ls failed} dispare. Ar fi simple și \texttt{\&\&} / \texttt{||}, pentru că \texttt{wait()} întoarce deja codul de ieșire al copilului.}
 \end{enumerate}
 
-\section{Concluzii}
-Interfața unui sistem de operare dictează limitările mediului său. În timp ce Bash pe Linux este un program masiv cu capabilități de limbaj de programare (bucles, funcții), shell-ul din xv6 este doar o mască subțire peste apelurile de sistem, ilustrând perfect mecanica nudă a sistemelor de tip UNIX (motivul tehnic imperios pentru care funcții precum \texttt{cd} trebuie implementate intern).
+%======================================================================
+\section{Part 3. Who expands *? A program that prints its argv}
+
+\begin{shot}{3.1}{args.c și linia din UPROGS}
+\begin{lstlisting}[language=C]
+#include "kernel/types.h"
+#include "user/user.h"
+
+int
+main(int argc, char *argv[])
+{
+  printf("argc = %d\n", argc);
+  for(int i = 0; i < argc; i++)
+    printf("argv[%d] = [%s]\n", i, argv[i]);
+  exit(0);
+}
+\end{lstlisting}
+\begin{lstlisting}[language=bash]
+136:	$U/_args\
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{3.2}{Output-ul args în xv6}
+\begin{lstlisting}[language=bash]
+$ args one   two    three
+argc = 4
+argv[0] = [args]
+argv[1] = [one]
+argv[2] = [two]
+argv[3] = [three]
+$ args *.c "x y"
+argc = 4
+argv[0] = [args]
+argv[1] = [*.c]
+argv[2] = ["x]
+argv[3] = [y"]
+$ args $HOME
+argc = 2
+argv[0] = [args]
+argv[1] = [$HOME]
+$ args 'single quoted'
+argc = 3
+argv[0] = [args]
+argv[1] = ['single]
+argv[2] = [quoted']
+\end{lstlisting}
+\end{shot}
+
+Varianta pentru Linux, \texttt{args\_linux.c}, folosește \texttt{\#include <stdio.h>} și \texttt{return 0}. A fost compilată cu \texttt{gcc -o args args\_linux.c} și rulată într-un director care conține \texttt{a.c}, \texttt{b.c} și \texttt{args\_linux.c}:
+
+\begin{shot}{3.3}{Output-ul args\_linux în bash}
+\begin{lstlisting}[language=bash]
+$ gcc -o args args_linux.c
+$ ./args one   two    three
+argc = 4
+argv[0] = [./args]
+argv[1] = [one]
+argv[2] = [two]
+argv[3] = [three]
+$ ./args *.c "x y"
+argc = 5
+argv[0] = [./args]
+argv[1] = [a.c]
+argv[2] = [args_linux.c]
+argv[3] = [b.c]
+argv[4] = [x y]
+$ ./args $HOME
+argc = 2
+argv[0] = [./args]
+argv[1] = [/home/user]
+$ ./args 'single quoted'
+argc = 2
+argv[0] = [./args]
+argv[1] = [single quoted]
+\end{lstlisting}
+\end{shot}
+
+\subsection*{Observe (Part 3)}
+\begin{enumerate}
+\Q{1. Paste both outputs for args *.c "x y". How many arguments did each program receive?}
+{Output-urile sunt în figurile 3.2 și 3.3.
+\begin{itemize}
+  \item \textbf{bash/Linux:} \texttt{argc = 5}, adică numele programului plus \textbf{4 argumente}: \texttt{a.c}, \texttt{args\_linux.c}, \texttt{b.c} și \texttt{x y} (un singur argument, cu spațiu, fără ghilimele).
+  \item \textbf{xv6:} \texttt{argc = 4}, adică numele programului plus \textbf{3 argumente}: \texttt{*.c} literal, \texttt{"x} și \texttt{y"} (ghilimelele au rămas, iar textul a fost tăiat la spațiu).
+\end{itemize}}
+\Q{2. So who turns *.c into file names and removes the quotes: the program, the kernel, or the shell?}
+{\textbf{Shell-ul.} Programul este identic pe ambele sisteme și doar afișează ce primește; kernelul (\texttt{exec}) doar copiază vectorul \texttt{argv} primit în memoria noului proces. Diferența vine din shell: bash face globbing și elimină ghilimelele \emph{înainte} de \texttt{exec}, iar shell-ul xv6 doar împarte linia la spații.}
+\Q{3. What happened to the extra spaces in one two three?}
+{Au dispărut în ambele shell-uri: \texttt{argc = 4}, cu argumentele \texttt{one}, \texttt{two}, \texttt{three}. Spațiile sunt doar separatori. Shell-ul sare peste orice șir de spații consecutive (în xv6, bucla din \texttt{gettoken} sare peste caracterele din \texttt{whitespace[]}), deci programul nu află câte spații au fost. Pentru a păstra spațiile, în bash argumentul trebuie pus între ghilimele (\texttt{"one   two"}); în xv6 nu se poate.}
+\end{enumerate}
+
+%======================================================================
+\section{Part 4. Read the shell}
+
+\begin{shot}{4.1}{Tipurile de comenzi definite în sh.c}
+\begin{lstlisting}[language=bash]
+$ wc -l user/sh.c
+499 user/sh.c
+$ grep -n "#define" user/sh.c
+8:#define EXEC  1
+9:#define REDIR 2
+10:#define PIPE  3
+11:#define LIST  4
+12:#define BACK  5
+14:#define MAXARGS 10
+\end{lstlisting}
+\end{shot}
+
+\begin{shot}{4.2}{Locul în care este rulat fiecare tip}
+\begin{lstlisting}[language=bash]
+$ grep -n "case " user/sh.c
+75:  case EXEC:
+83:  case REDIR:
+93:  case LIST:
+101:  case PIPE:
+125:  case BACK:
+284:  case 0:
+286:  case '|':
+287:  case '(':
+288:  case ')':
+289:  case ';':
+290:  case '&':
+291:  case '<':
+294:  case '>':
+391:    case '<':
+394:    case '>':
+397:    case '+': // >>
+469:  case EXEC:
+475:  case REDIR:
+481:  case PIPE:
+487:  case LIST:
+493:  case BACK:
+\end{lstlisting}
+\end{shot}
+Liniile 75--125 sunt în \texttt{runcmd()} (execuția fiecărui tip), liniile 284--294 în \texttt{gettoken()} (recunoașterea simbolurilor), 391--397 în \texttt{parseredirs()}, iar 469--493 în \texttt{nulterminate()}.
+
+\begin{shot}{4.3}{Codul care tratează cd}
+\begin{lstlisting}[language=C]
+$ grep -n "cd" user/sh.c | head
+170:        fprintf(2, "cannot cd %s\n", cmd + 3);
+
+  // din main():
+  while (getcmd(buf, sizeof(buf)) >= 0) {
+    char *cmd = buf;
+    while (*cmd == ' ' || *cmd == '\t')
+      cmd++;
+    if (*cmd == '\n') // is a blank command
+      continue;
+    if (cmd[0] == 'c' && cmd[1] == 'd' && cmd[2] == ' ') {
+      // Chdir must be called by the parent, not the child.
+      cmd[strlen(cmd) - 1] = 0; // chop \n
+      if (chdir(cmd + 3) < 0)
+        fprintf(2, "cannot cd %s\n", cmd + 3);
+    } else {
+      if (fork1() == 0)
+        runcmd(parsecmd(cmd));
+      wait(0);
+    }
+  }
+\end{lstlisting}
+\end{shot}
+
+\subsection*{Observe (Part 4)}
+\begin{enumerate}
+\Q{1. Name the five kinds of command the xv6 shell knows and the character that produces each.}
+{\begin{itemize}
+  \item \texttt{EXEC} (1) -- o comandă simplă: cuvinte despărțite prin spații, fără caracter special (de exemplu \texttt{ls -l}); rulată cu \texttt{exec()}.
+  \item \texttt{REDIR} (2) -- \texttt{<}, \texttt{>} și \texttt{>>} (intern \texttt{'+'}); închide fd 0 sau 1 și deschide fișierul în locul lui.
+  \item \texttt{PIPE} (3) -- \texttt{|}; \texttt{pipe()} plus două procese copil, cu capetele legate la fd 1 și fd 0.
+  \item \texttt{LIST} (4) -- \texttt{;}; rulează stânga, așteaptă (\texttt{wait}), apoi dreapta.
+  \item \texttt{BACK} (5) -- \texttt{\&}; rulează comanda într-un copil fără să o aștepte.
+\end{itemize}
+Parantezele \texttt{( )} nu formează un tip separat: \texttt{parseblock} le transformă în subarborele dintre ele. Setul complet de simboluri este \texttt{symbols[] = "<|>\&;()"} (linia 269).}
+\Q{2. Where is cd handled, and why is it not run as a separate program?}
+{\texttt{cd} este tratat direct în \texttt{main()} din \texttt{sh.c} (figura 4.3, linia 170 pentru mesajul de eroare). Dacă linia începe cu \texttt{"cd "}, shell-ul apelează \texttt{chdir(cmd + 3)} în propriul proces, \emph{fără} \texttt{fork}. Comentariul din cod spune exact: \emph{„Chdir must be called by the parent, not the child.”}\\
+Directorul curent este o proprietate a procesului (\texttt{p->cwd} în kernel). Un program \texttt{cd} separat ar rula într-un copil creat cu \texttt{fork}, și-ar schimba propriul director și s-ar termina, iar shell-ul ar rămâne unde era.\\
+Consecința se vede în Part 2: \texttt{cd} funcționează doar la începutul liniei. În \texttt{mkdir d ; cd d ; ls ..}, linia începe cu \texttt{mkdir}, deci \texttt{cd} ajunge în \texttt{runcmd} ca \texttt{EXEC} și dă \texttt{exec cd failed}. Iar \texttt{cd d; ls} ar apela \texttt{chdir("d; ls")} și ar afișa \texttt{cannot cd d; ls}.}
+\item \textbf{3. Search sh.c for any code that handles * or \$. What does that explain about Part 2?}\\
+Nu există niciun astfel de cod:
+\begin{lstlisting}[language=bash]
+$ grep -n "'\*'\|'\$'\|glob" user/sh.c
+$ echo $?
+1
+$ grep -n "symbols\[\]\|whitespace\[\]" user/sh.c
+268:char whitespace[] = " \t\r\n\v";
+269:char symbols[] = "<|>&;()";
+\end{lstlisting}
+Singurele caractere speciale sunt cele din \texttt{symbols[]} și spațiile din \texttt{whitespace[]}. \texttt{*}, \texttt{\$} și ghilimelele sunt pentru shell-ul xv6 litere obișnuite, care fac parte din cuvânt. Asta explică rezultatele din Part 2 și Part 3: \texttt{ls *} dă \texttt{cannot open *}, \texttt{echo \$HOME} afișează \texttt{\$HOME}, \texttt{echo "a b"} afișează ghilimelele, iar \texttt{args *.c "x y"} primește \texttt{*.c}, \texttt{"x} și \texttt{y"}. Toate aceste funcții există în bash doar pentru că bash are cod care le face.
+\end{enumerate}
+
+\section*{Concluzii}
+Un shell minimal are nevoie de puțin: citește o linie, o împarte în cuvinte, construiește un arbore din cinci tipuri de comenzi (\texttt{EXEC}, \texttt{REDIR}, \texttt{PIPE}, \texttt{LIST}, \texttt{BACK}) și îl execută cu \texttt{fork}, \texttt{exec}, \texttt{wait}, \texttt{pipe}, \texttt{open}/\texttt{close}. Tot ce face bash peste acest minim (globbing, variabile, ghilimele, \texttt{PATH}, \texttt{\&\&}/\texttt{||}, istoric, completare, job control) este cod suplimentar în shell, nu în kernel și nici în programe. Programul \texttt{args} arată asta direct: același cod primește argumente diferite în funcție de shell. \texttt{cd} trebuie să fie în shell, pentru că schimbă starea procesului shell. Lipsa \texttt{PATH} din xv6 explică de ce \texttt{ls} nu mai merge după \texttt{cd d} și de ce soluția este \texttt{/ls}. Programul \texttt{sleep} a fost adaptat la redenumirea \texttt{sleep()} $\rightarrow$ \texttt{pause()} și rulează corect pe xv6-ul actual.
 \end{document}
